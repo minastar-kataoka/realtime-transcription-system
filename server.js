@@ -212,24 +212,34 @@ io.on('connection', (socket) => {
     console.log('現在の送信権者:', currentSender ? currentSender.name : 'なし');
     console.log('送信権インデックス:', currentSenderIndex);
     
-    // 実際のサーバーIPアドレスを取得
-    const networkInterfaces = os.networkInterfaces();
-    let serverIP = 'localhost';
-    
-    // LAN内IPアドレスを見つける
-    Object.keys(networkInterfaces).forEach((interfaceName) => {
-        networkInterfaces[interfaceName].forEach((network) => {
-            if (network.family === 'IPv4' && !network.internal) {
-                serverIP = network.address; // 例: 192.168.1.100
-            }
-        });
-    });
+    // Heroku対応: 実際のアクセスURLを取得
+    let serverUrl;
+    if (process.env.NODE_ENV === 'production' || process.env.PORT) {
+      // 本番環境（Heroku）の場合
+      serverUrl = 'https://minart-bacec6fffc57.herokuapp.com';
+    } else {
+      // 開発環境（ローカル）の場合
+      const networkInterfaces = os.networkInterfaces();
+      let serverIP = 'localhost';
+      
+      Object.keys(networkInterfaces).forEach((interfaceName) => {
+          networkInterfaces[interfaceName].forEach((network) => {
+              if (network.family === 'IPv4' && !network.internal) {
+                  serverIP = network.address;
+              }
+          });
+      });
+      
+      serverUrl = `http://${serverIP}:${PORT || 3000}`;
+    }
     
     // 参加者本人に参加完了とサーバー情報を通知
     socket.emit('joined', { 
         success: true, 
         participant,
         serverInfo: {
+            ip: serverUrl.replace(/https?:\/\//, '').split(':')[0],
+            port: process.env.PORT || 3000,
             operatorUrl: serverUrl,
             displayUrl: `${serverUrl}/display`
         }
@@ -367,25 +377,19 @@ server.listen(PORT, HOST, () => {
   console.log(`ポート: ${PORT}`);
   console.log('=================================');
   
-// Heroku対応: 実際のアクセスURLを取得
-let serverUrl;
-if (process.env.NODE_ENV === 'production') {
-    // 本番環境（Heroku）の場合
-    serverUrl = `https://${req.get('host')}` || 'https://minart-bacec6fffc57.herokuapp.com';
-} else {
-    // 開発環境（ローカル）の場合
+  // LAN内のIPアドレスを表示（開発環境のみ）
+  if (process.env.NODE_ENV !== 'production') {
     const networkInterfaces = os.networkInterfaces();
-    let serverIP = 'localhost';
+    console.log('アクセス可能なURL:');
+    console.log(`- ローカル: http://localhost:${PORT}`);
     
     Object.keys(networkInterfaces).forEach((interfaceName) => {
-        networkInterfaces[interfaceName].forEach((network) => {
-            if (network.family === 'IPv4' && !network.internal) {
-                serverIP = network.address;
-            }
-        });
+      networkInterfaces[interfaceName].forEach((network) => {
+        if (network.family === 'IPv4' && !network.internal) {
+          console.log(`- LAN内: http://${network.address}:${PORT}`);
+        }
+      });
     });
-    
-    serverUrl = `http://${serverIP}:${PORT}`;
-}
+  }
   console.log('=================================');
 });
