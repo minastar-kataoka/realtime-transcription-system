@@ -230,10 +230,8 @@ io.on('connection', (socket) => {
         success: true, 
         participant,
         serverInfo: {
-            ip: serverIP,
-            port: PORT,
-            operatorUrl: `http://${serverIP}:${PORT}`,
-            displayUrl: `http://${serverIP}:${PORT}/display`
+            operatorUrl: serverUrl,
+            displayUrl: `${serverUrl}/display`
         }
     });
     
@@ -369,17 +367,25 @@ server.listen(PORT, HOST, () => {
   console.log(`ポート: ${PORT}`);
   console.log('=================================');
   
-  // LAN内のIPアドレスを表示
-  const networkInterfaces = os.networkInterfaces();
-  console.log('アクセス可能なURL:');
-  console.log(`- ローカル: http://localhost:${PORT}`);
-  
-  Object.keys(networkInterfaces).forEach((interfaceName) => {
-    networkInterfaces[interfaceName].forEach((network) => {
-      if (network.family === 'IPv4' && !network.internal) {
-        console.log(`- LAN内: http://${network.address}:${PORT}`);
-      }
+// Heroku対応: 実際のアクセスURLを取得
+let serverUrl;
+if (process.env.NODE_ENV === 'production') {
+    // 本番環境（Heroku）の場合
+    serverUrl = `https://${req.get('host')}` || 'https://minart-bacec6fffc57.herokuapp.com';
+} else {
+    // 開発環境（ローカル）の場合
+    const networkInterfaces = os.networkInterfaces();
+    let serverIP = 'localhost';
+    
+    Object.keys(networkInterfaces).forEach((interfaceName) => {
+        networkInterfaces[interfaceName].forEach((network) => {
+            if (network.family === 'IPv4' && !network.internal) {
+                serverIP = network.address;
+            }
+        });
     });
-  });
+    
+    serverUrl = `http://${serverIP}:${PORT}`;
+}
   console.log('=================================');
 });
