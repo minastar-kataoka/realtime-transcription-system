@@ -411,95 +411,36 @@
             gap: 15px;
         }
         
-        .messages-panel {
+        /* ログ表示パネル（旧メッセージパネル部分） */
+        .log-panel {
             background-color: #ffffff;
             padding: 20px;
             border-radius: 5px;
             margin-bottom: 20px;
             border: 1px solid #ddd;
-            max-height: 300px;
-            overflow-y: auto;
         }
         
-        .messages-list {
-            margin-top: 15px;
-        }
-        
-        .message-item {
-            padding: 10px;
-            margin-bottom: 10px;
-            background-color: #f8f9fa;
-            border-radius: 3px;
-            border-left: 4px solid #007bff;
-        }
-        
-        .message-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-            font-size: 12px;
-            color: #6c757d;
-        }
-        
-        .message-sender {
-            font-weight: bold;
-            color: #007bff;
-        }
-        
-        .message-text {
-            font-size: 16px;
-            line-height: 1.4;
-        }
-        
-        .no-messages {
-            color: #6c757d;
-            text-align: center;
-            font-style: italic;
-        }
-        
-        .participants-panel {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        
-        .participants-list {
-            margin-top: 15px;
-        }
-        
-        .participant-item {
+        .log-controls {
             display: flex;
             align-items: center;
-            padding: 10px;
-            margin-bottom: 8px;
-            background-color: white;
-            border-radius: 3px;
-            border-left: 4px solid #28a745;
-            transition: all 0.3s ease;
-        }
-        
-        .participant-item.has-sender-permission {
-            border-left-color: #2196f3;
-            background-color: #e3f2fd;
-            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
-        }
-        
-        .participant-name {
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        
-        .participant-status {
-            color: #666;
-            font-size: 0.9em;
-        }
-        
-        .messages-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            gap: 15px;
             flex-wrap: wrap;
+        }
+        
+        .log-show-btn {
+            padding: 12px 24px;
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .log-show-btn:hover {
+            background-color: #138496;
         }
         
         .export-btn {
@@ -548,6 +489,44 @@
             font-size: 12px;
             color: #6c757d;
             margin-left: auto;
+        }
+        
+        .participants-panel {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .participants-list {
+            margin-top: 15px;
+        }
+        
+        .participant-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: white;
+            border-radius: 3px;
+            border-left: 4px solid #28a745;
+            transition: all 0.3s ease;
+        }
+        
+        .participant-item.has-sender-permission {
+            border-left-color: #2196f3;
+            background-color: #e3f2fd;
+            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+        }
+        
+        .participant-name {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .participant-status {
+            color: #666;
+            font-size: 0.9em;
         }
     </style>
 </head>
@@ -609,16 +588,15 @@
                 </div>
             </div>
             
-            <div class="messages-panel">
-                <h3>送信済みメッセージ</h3>
-                <div class="messages-controls" style="margin-bottom: 15px;">
+            <!-- ログ表示パネル（旧メッセージパネル） -->
+            <div class="log-panel">
+                <h3>送信済みメッセージ管理</h3>
+                <div class="log-controls">
+                    <button id="logShowBtn" class="log-show-btn">📋 ログ表示</button>
                     <button id="exportTextBtn" class="export-btn">テキストのみエクスポート</button>
                     <button id="exportTimecodeBtn" class="export-btn">タイムコード付きエクスポート</button>
                     <button id="clearLogBtn" class="clear-log-btn">ログクリア</button>
                     <span id="logStats" class="log-stats">ログ: 0件</span>
-                </div>
-                <div id="messagesList" class="messages-list">
-                    <p class="no-messages">まだメッセージがありません</p>
                 </div>
             </div>
             
@@ -663,9 +641,9 @@
         
         const textInput = document.getElementById('textInput');
         const sendBtn = document.getElementById('sendBtn');
-        const messagesList = document.getElementById('messagesList');
         
-        // ログエクスポート用の要素
+        // ログ関連の要素
+        const logShowBtn = document.getElementById('logShowBtn');
         const exportTextBtn = document.getElementById('exportTextBtn');
         const exportTimecodeBtn = document.getElementById('exportTimecodeBtn');
         const clearLogBtn = document.getElementById('clearLogBtn');
@@ -688,6 +666,7 @@
         let typingTimeout = null;
         let allParticipants = []; // 全参加者を保持
         let messageCount = 0; // ログ件数をトラッキング
+        let logWindow = null; // ログウィンドウの参照
         
         // Socket.io接続イベント
         socket.on('connect', () => {
@@ -722,7 +701,7 @@
                 // 自分の名前を表示
                 currentUserName.textContent = data.participant.name;
                 
-                // 実際のURLを表示とQRコード生成 ← 新規追加
+                // 実際のURLを表示とQRコード生成
                 if (data.serverInfo) {
                     updateConnectionInfo(data.serverInfo);
                     generateDisplayQR(data.serverInfo.displayUrl);
@@ -752,9 +731,13 @@
         
         // メッセージ受信
         socket.on('text_received', (message) => {
-            addMessageToList(message);
             messageCount++;
             updateLogStats();
+            
+            // ログウィンドウが開いている場合、メッセージを追加
+            if (logWindow && !logWindow.closed) {
+                logWindow.addMessageToLog(message);
+            }
         });
         
         // リアルタイム入力受信
@@ -768,6 +751,38 @@
             typingUsers.delete(data.userId);
             clearThreeTierTyping(data.userId);
         });
+        
+        // ログ表示ウィンドウを開く
+        function openLogWindow() {
+            const logUrl = window.location.origin + '/logs';
+            
+            // 既存のウィンドウがある場合は閉じる
+            if (logWindow && !logWindow.closed) {
+                logWindow.close();
+            }
+            
+            // 新しいウィンドウを開く
+            logWindow = window.open(
+                logUrl,
+                'transcription-logs',
+                'width=1000,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no'
+            );
+            
+            if (!logWindow) {
+                alert('ポップアップがブロックされました。ブラウザの設定を確認してください。');
+                return;
+            }
+            
+            // ウィンドウが閉じられた場合の処理
+            const checkClosed = setInterval(() => {
+                if (logWindow.closed) {
+                    clearInterval(checkClosed);
+                    logWindow = null;
+                }
+            }, 1000);
+            
+            console.log('ログウィンドウを開きました:', logUrl);
+        }
         
         // 文字数をカウント（全角相当）
         function countCharacters(text) {
@@ -926,30 +941,6 @@
             }
         }
         
-        // メッセージをリストに追加
-        function addMessageToList(message) {
-            // 「まだメッセージがありません」を削除
-            const noMessages = messagesList.querySelector('.no-messages');
-            if (noMessages) {
-                noMessages.remove();
-            }
-            
-            const messageElement = document.createElement('div');
-            messageElement.className = 'message-item';
-            messageElement.innerHTML = `
-                <div class="message-header">
-                    <span class="message-sender">${message.sender}</span>
-                    <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
-                </div>
-                <div class="message-text">${message.text}</div>
-            `;
-            
-            messagesList.appendChild(messageElement);
-            
-            // 最新メッセージまでスクロール
-            messagesList.scrollTop = messagesList.scrollHeight;
-        }
-        
         // 送信ボタンのイベント
         sendBtn.addEventListener('click', () => {
             const text = textInput.value.trim();
@@ -997,8 +988,6 @@
                     timestamp: data.timestamp
                 });
             }
-            
-            // 従来のリアルタイム表示も更新（デバッグ用に残す）
         }
         
         // 自分の入力をリアルタイム送信（最速設定）
@@ -1016,98 +1005,98 @@
         });
         
         // 3段表示を更新
-　　　　function updateThreeTierDisplay(participants, currentSender) {
-　　　　    console.log('3段表示更新 - 参加者数:', participants.length);
-   　　　　 console.log('自分の情報:', myParticipant);
-    　　　　console.log('送信権者:', currentSender);
-   　　　　 
-    　　　　if (!myParticipant || participants.length === 0) {
-        　　　　previousUserName.textContent = '前の人';
-　　　　        previousUserInput.textContent = '待機中...';
-　　　　        previousUserInput.className = 'tier-content empty';
-　　　　        document.querySelector('.tier-previous').className = 'tier-panel tier-previous';
-　　　　        
-　　　　        currentUserName.textContent = 'あなた';
-　　　　        
-　　　　        nextUserName.textContent = '次の人';
-　　　　        nextUserInput.textContent = '待機中...';
-　　　　        nextUserInput.className = 'tier-content empty';
-　　　　        document.querySelector('.tier-next').className = 'tier-panel tier-next';
-　　　　        return;
-　　　　    }
-　　　　    
-　　　　    // 現在のユーザーの位置を特定
-　　　　    const myIndex = participants.findIndex(p => p.id === myParticipant.id);
-　　　　    console.log('自分のインデックス:', myIndex);
-　　　　    
-　　　　    if (myIndex === -1) return;
-　　　　    
-　　　　    // 前の人を取得（循環）
-　　　　    const previousIndex = (myIndex - 1 + participants.length) % participants.length;
-　　　　    const previousUser = participants[previousIndex];
-　　　　    
-　　　　    // 次の人を取得（循環）
-　　　　    const nextIndex = (myIndex + 1) % participants.length;
-　　　　    const nextUser = participants[nextIndex];
-　　　　    
-　　　　    console.log('前の人:', previousUser.name, '次の人:', nextUser.name);
-　　　　    
-　　　　    // 1人の場合の特別処理
-　　　　    if (participants.length === 1) {
-　　　　        previousUserName.textContent = 'あなた（前の順番）';
-　　　　        previousUserInput.textContent = '1人モードです';
-　　　　        previousUserInput.className = 'tier-content empty';
-　　　　        document.querySelector('.tier-previous').className = 'tier-panel tier-previous';
-　　　　        
-　　　　        nextUserName.textContent = 'あなた（次の順番）';
-　　　　        nextUserInput.textContent = '1人モードです';
-　　　　        nextUserInput.className = 'tier-content empty';
-　　　　        document.querySelector('.tier-next').className = 'tier-panel tier-next';
-　　　　    } else {
-　　　　        // 前の人
-　　　　        previousUserName.textContent = previousUser.name;
-　　　　        const previousTyping = typingUsers.get(previousUser.id);
-　　　　        if (previousTyping && previousTyping.text.trim()) {
-　　　　            previousUserInput.textContent = previousTyping.text;
-　　　　            previousUserInput.className = 'tier-content';
-　　　　        } else {
-　　　　            previousUserInput.textContent = '待機中...';
-　　　　            previousUserInput.className = 'tier-content empty';
-　　　　        }
-　　　　        
-　　　　        // 前の人が送信権を持っているかチェック
-　　　　        const previousHasSender = currentSender && currentSender.id === previousUser.id;
-　　　　        document.querySelector('.tier-previous').className = previousHasSender 
-　　　　            ? 'tier-panel tier-previous has-sender-permission' 
-　　　　            : 'tier-panel tier-previous';
-　　　　        
-　　　　        // 次の人
-　　　　        nextUserName.textContent = nextUser.name;
-　　　　        const nextTyping = typingUsers.get(nextUser.id);
-　　　　        if (nextTyping && nextTyping.text.trim()) {
-　　　　            nextUserInput.textContent = nextTyping.text;
-　　　　            nextUserInput.className = 'tier-content';
-　　　　        } else {
-　　　　            nextUserInput.textContent = '待機中...';
-　　　　            nextUserInput.className = 'tier-content empty';
-　　　　        }
-　　　　        
-　　　　        // 次の人が送信権を持っているかチェック
-　　　　        const nextHasSender = currentSender && currentSender.id === nextUser.id;
-　　　　        document.querySelector('.tier-next').className = nextHasSender 
-　　　　            ? 'tier-panel tier-next has-sender-permission' 
-　　　　            : 'tier-panel tier-next';
-　　　　    }
-　　　　    
-　　　　    // 自分の名前を更新
-　　　　    currentUserName.textContent = myParticipant.name;
-　　　　    
-　　　　    // 自分が送信権を持っているかチェック（中段用）
-　　　　    const iHaveSender = currentSender && currentSender.id === myParticipant.id;
-　　　　    tierCurrent.className = iHaveSender 
-　　　　        ? 'tier-panel tier-current has-sender-permission' 
-　　　　        : 'tier-panel tier-current';
-　　　　}
+        function updateThreeTierDisplay(participants, currentSender) {
+            console.log('3段表示更新 - 参加者数:', participants.length);
+            console.log('自分の情報:', myParticipant);
+            console.log('送信権者:', currentSender);
+            
+            if (!myParticipant || participants.length === 0) {
+                previousUserName.textContent = '前の人';
+                previousUserInput.textContent = '待機中...';
+                previousUserInput.className = 'tier-content empty';
+                document.querySelector('.tier-previous').className = 'tier-panel tier-previous';
+                
+                currentUserName.textContent = 'あなた';
+                
+                nextUserName.textContent = '次の人';
+                nextUserInput.textContent = '待機中...';
+                nextUserInput.className = 'tier-content empty';
+                document.querySelector('.tier-next').className = 'tier-panel tier-next';
+                return;
+            }
+            
+            // 現在のユーザーの位置を特定
+            const myIndex = participants.findIndex(p => p.id === myParticipant.id);
+            console.log('自分のインデックス:', myIndex);
+            
+            if (myIndex === -1) return;
+            
+            // 前の人を取得（循環）
+            const previousIndex = (myIndex - 1 + participants.length) % participants.length;
+            const previousUser = participants[previousIndex];
+            
+            // 次の人を取得（循環）
+            const nextIndex = (myIndex + 1) % participants.length;
+            const nextUser = participants[nextIndex];
+            
+            console.log('前の人:', previousUser.name, '次の人:', nextUser.name);
+            
+            // 1人の場合の特別処理
+            if (participants.length === 1) {
+                previousUserName.textContent = 'あなた（前の順番）';
+                previousUserInput.textContent = '1人モードです';
+                previousUserInput.className = 'tier-content empty';
+                document.querySelector('.tier-previous').className = 'tier-panel tier-previous';
+                
+                nextUserName.textContent = 'あなた（次の順番）';
+                nextUserInput.textContent = '1人モードです';
+                nextUserInput.className = 'tier-content empty';
+                document.querySelector('.tier-next').className = 'tier-panel tier-next';
+            } else {
+                // 前の人
+                previousUserName.textContent = previousUser.name;
+                const previousTyping = typingUsers.get(previousUser.id);
+                if (previousTyping && previousTyping.text.trim()) {
+                    previousUserInput.textContent = previousTyping.text;
+                    previousUserInput.className = 'tier-content';
+                } else {
+                    previousUserInput.textContent = '待機中...';
+                    previousUserInput.className = 'tier-content empty';
+                }
+                
+                // 前の人が送信権を持っているかチェック
+                const previousHasSender = currentSender && currentSender.id === previousUser.id;
+                document.querySelector('.tier-previous').className = previousHasSender 
+                    ? 'tier-panel tier-previous has-sender-permission' 
+                    : 'tier-panel tier-previous';
+                
+                // 次の人
+                nextUserName.textContent = nextUser.name;
+                const nextTyping = typingUsers.get(nextUser.id);
+                if (nextTyping && nextTyping.text.trim()) {
+                    nextUserInput.textContent = nextTyping.text;
+                    nextUserInput.className = 'tier-content';
+                } else {
+                    nextUserInput.textContent = '待機中...';
+                    nextUserInput.className = 'tier-content empty';
+                }
+                
+                // 次の人が送信権を持っているかチェック
+                const nextHasSender = currentSender && currentSender.id === nextUser.id;
+                document.querySelector('.tier-next').className = nextHasSender 
+                    ? 'tier-panel tier-next has-sender-permission' 
+                    : 'tier-panel tier-next';
+            }
+            
+            // 自分の名前を更新
+            currentUserName.textContent = myParticipant.name;
+            
+            // 自分が送信権を持っているかチェック（中段用）
+            const iHaveSender = currentSender && currentSender.id === myParticipant.id;
+            tierCurrent.className = iHaveSender 
+                ? 'tier-panel tier-current has-sender-permission' 
+                : 'tier-panel tier-current';
+        }
         
         // 3段表示のリアルタイム入力を更新
         function updateThreeTierTyping(data) {
@@ -1295,10 +1284,14 @@
                 });
                 
                 if (response.ok) {
-                    // 画面上のメッセージリストもクリア
-                    messagesList.innerHTML = '<p class="no-messages">まだメッセージがありません</p>';
                     messageCount = 0;
                     updateLogStats();
+                    
+                    // ログウィンドウが開いている場合、ログもクリア
+                    if (logWindow && !logWindow.closed) {
+                        logWindow.clearAllLogs();
+                    }
+                    
                     alert('ログをクリアしました');
                     console.log('ログクリア完了');
                 } else {
@@ -1309,6 +1302,8 @@
                 alert('ログクリアに失敗しました');
             }
         }
+        
+        // イベントリスナー設定
         joinBtn.addEventListener('click', () => {
             const name = nameInput.value.trim();
             
@@ -1334,6 +1329,13 @@
                 joinBtn.click();
             }
         });
+        
+        // ログ表示ボタン
+        logShowBtn.addEventListener('click', () => {
+            console.log('ログ表示ボタンがクリックされました');
+            openLogWindow();
+        });
+        
         // ログエクスポートボタンのイベントリスナー設定
         exportTextBtn.addEventListener('click', async () => {
             console.log('テキストのみエクスポートボタンがクリックされました');
