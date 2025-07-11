@@ -6,7 +6,14 @@ const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+
+// Socket.IOのCORS設定を追加
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 // 静的ファイルの配信
 app.use(express.static(path.join(__dirname, 'public')));
@@ -20,6 +27,11 @@ app.get('/', (req, res) => {
 // 表示専用画面（プロジェクター用）
 app.get('/display', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'display.html'));
+});
+
+// ログ表示ページ（新規追加）
+app.get('/logs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'logs.html'));
 });
 
 // 参加者管理
@@ -92,6 +104,17 @@ function generateCSV(type) {
   console.log(`CSV生成完了: ${csvContent.length}文字`);
   return csvContent;
 }
+
+// メッセージ一覧を取得するAPI（新規追加）
+app.get('/api/messages', (req, res) => {
+  console.log(`メッセージ一覧取得: ${sessionLog.length}件`);
+  res.json({
+    success: true,
+    messages: sessionLog,
+    totalMessages: sessionLog.length,
+    sessionStartTime: sessionStartTime
+  });
+});
 
 // ログエクスポート用エンドポイント
 app.get('/api/export/:type', (req, res) => {
@@ -189,6 +212,9 @@ function adjustSenderIndex() {
 // Socket.io接続処理
 io.on('connection', (socket) => {
   console.log('新しいユーザーが接続しました:', socket.id);
+  
+  // デバッグ: 表示画面からの接続もログに記録
+  console.log('接続元URL:', socket.handshake.headers.referer);
   
   // 参加者登録
   socket.on('join', (data) => {
@@ -295,12 +321,14 @@ io.on('connection', (socket) => {
     };
     
     console.log(`${currentSender.name} がテキストを送信: "${data.text}"`);
+    console.log('メッセージを全クライアントに配信中...');
     
     // ログに追加
     addMessageToLog(data.text, currentSender.name);
     
-    // 全員にメッセージを送信
+    // 全員にメッセージを送信（表示画面含む）
     io.emit('text_received', message);
+    console.log('text_receivedイベントを送信しました');
     
     // 自動で次の人に送信権を移す
     const nextSender = rotateSender();
