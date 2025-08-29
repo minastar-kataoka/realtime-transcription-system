@@ -458,7 +458,7 @@
         アニメーション: 停止
     </div>
 
-    <!-- 設定パネル -->
+<!-- 設定パネル -->
     <div class="settings-modal" id="settingsModal">
         <div class="settings-panel">
             <div class="settings-header">
@@ -518,6 +518,16 @@
                         <div class="checkbox-wrapper">
                             <input type="checkbox" class="setting-checkbox" id="fontBoldCheck">
                             <label for="fontBoldCheck">ボールド（太字）</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">強制的に半角→全角</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="fullWidthCheck">
+                            <label for="fullWidthCheck">半角文字を全角に変換</label>
                         </div>
                     </div>
                 </div>
@@ -615,6 +625,9 @@
         let hasMessages = false;
         let isAnimating = false;
         
+        // グローバル変数に辞書を保存
+        let spacedNamesDictionary = [];
+        
         // 設定オブジェクト
         const settings = {
             fontSize: 20,
@@ -625,7 +638,8 @@
             backgroundColor: '#000000',
             maxCharsPerLine: 30,
             maxVisibleLines: 10,
-            animationDuration: 0.8
+            animationDuration: 0.8,
+            fullWidthMode: false
         };
         
         // デフォルト設定
@@ -676,6 +690,9 @@
             document.getElementById('maxLinesInput').value = settings.maxVisibleLines;
             document.getElementById('charsPerLineSlider').value = settings.maxCharsPerLine;
             document.getElementById('charsPerLineInput').value = settings.maxCharsPerLine;
+            
+                // 全角変換設定
+                document.getElementById('fullWidthCheck').checked = settings.fullWidthMode;
         }
         
         // フォントファミリーのマッピング
@@ -815,6 +832,17 @@
             syncColorInputs('fontColorPicker', 'fontColorInput', 'fontColor');
             syncColorInputs('bgColorPicker', 'bgColorInput', 'backgroundColor');
             
+            // 全角変換モード設定
+            document.getElementById('fullWidthCheck').addEventListener('change', (e) => {
+                settings.fullWidthMode = e.target.checked;
+                saveSettings();
+                
+                // 既存テキストにも適用する場合は再描画
+                if (textLineArray.length > 0) {
+                    updateDisplay();
+                }
+            });
+            
             // 設定ファイルの読み込み
             document.getElementById('configFile').addEventListener('change', (e) => {
                 const file = e.target.files[0];
@@ -911,7 +939,146 @@
                    (code >= 0xFF61 && code <= 0xFF9F);
         }
         
+        // TSV辞書ファイルの読み込み
+        async function loadSpacedNamesDictionary() {
+            try {
+                const response = await fetch('/spaced-names-dictionary.tsv');
+                const tsvText = await response.text();
+                
+                // TSVをパース
+                const lines = tsvText.trim().split('\n');
+                const headers = lines[0].split('\t'); // ヘッダー行をスキップ
+                
+                spacedNamesDictionary = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const columns = lines[i].split('\t');
+                    if (columns.length >= 2) {
+                        const category = columns[0].trim();
+                        const name = columns[1].trim();
+                        spacedNamesDictionary.push(name);
+                    }
+                }
+                
+                console.log(`スペース付き固有名詞辞書を読み込み: ${spacedNamesDictionary.length}件`);
+                
+            } catch (error) {
+                console.error('辞書ファイルの読み込み失敗:', error);
+                // フォールバック: 基本的な名詞のみ
+                spacedNamesDictionary = [
+                    'ニュー ヨーク',
+                    'ドナルド トランプ',
+                    'マイクロソフト オフィス'
+                ];
+            }
+        }
+        
+        // 修正されたクリーンアップ関数
+        function cleanupSpeechText(text) {
+            // 辞書が読み込まれていない場合は基本処理のみ
+            if (spacedNamesDictionary.length === 0) {
+                return basicCleanup(text);
+            }
+            
+            // 正当なスペース付き名詞を一時的に保護
+            const protected = [];
+            let protectedText = text;
+            
+            spacedNamesDictionary.forEach((name, index) => {
+                const placeholder = `__PROTECTED_${index}__`;
+                if (protectedText.includes(name)) {
+                    protected[index] = name;
+                    protectedText = protectedText.replace(new RegExp(escapeRegex(name), 'g'), placeholder);
+                }
+            });
+            
+            // 通常のクリーンアップを実行
+            let cleaned = basicCleanup(protectedText);
+            
+            // 保護した名詞を復元
+            protected.forEach((name, index) => {
+                if (name) {
+                    cleaned = cleaned.replace(`__PROTECTED_${index}__`, name);
+                }
+            });
+            
+            console.log('テキストクリーンアップ:', {
+                original: text.substring(0, 50) + '...',
+                cleaned: cleaned.substring(0, 50) + '...'
+            });
+            
+            return cleaned;
+        }
+        
+        // 基本的なクリーンアップ処理
+        function basicCleanup(text) {
+            let cleaned = text;
+            cleaned = cleaned.replace(/([ぁ-んァ-ヿ一-龯]) +([a-zA-Z0-9])/g, '$1$2');
+            cleaned = cleaned.replace(/([a-zA-Z0-9]) +([ぁ-んァ-ヿ一-龯])/g, '$1$2');
+            cleaned = cleaned.replace(/([ぁ-んァ-ヿ一-龯]) +([ぁ-んァ-ヿ一-龯])/g, '$1$2');
+            return cleaned;
+        }
+        
+        // 正規表現エスケープ
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        
+        // 半角文字を全角に変換（半角カナ対応版）
+        function convertToFullWidth(text) {
+            // 半角カナから全角カナへの変換マップ
+            const halfToFullKanaMap = {
+                'ｱ': 'ア', 'ｲ': 'イ', 'ｳ': 'ウ', 'ｴ': 'エ', 'ｵ': 'オ',
+                'ｶ': 'カ', 'ｷ': 'キ', 'ｸ': 'ク', 'ｹ': 'ケ', 'ｺ': 'コ',
+                'ｻ': 'サ', 'ｼ': 'シ', 'ｽ': 'ス', 'ｾ': 'セ', 'ｿ': 'ソ',
+                'ﾀ': 'タ', 'ﾁ': 'チ', 'ﾂ': 'ツ', 'ﾃ': 'テ', 'ﾄ': 'ト',
+                'ﾅ': 'ナ', 'ﾆ': 'ニ', 'ﾇ': 'ヌ', 'ﾈ': 'ネ', 'ﾉ': 'ノ',
+                'ﾊ': 'ハ', 'ﾋ': 'ヒ', 'ﾌ': 'フ', 'ﾍ': 'ヘ', 'ﾎ': 'ホ',
+                'ﾏ': 'マ', 'ﾐ': 'ミ', 'ﾑ': 'ム', 'ﾒ': 'メ', 'ﾓ': 'モ',
+                'ﾔ': 'ヤ', 'ﾕ': 'ユ', 'ﾖ': 'ヨ',
+                'ﾗ': 'ラ', 'ﾘ': 'リ', 'ﾙ': 'ル', 'ﾚ': 'レ', 'ﾛ': 'ロ',
+                'ﾜ': 'ワ', 'ｦ': 'ヲ', 'ﾝ': 'ン',
+                'ｧ': 'ァ', 'ｨ': 'ィ', 'ｩ': 'ゥ', 'ｪ': 'ェ', 'ｫ': 'ォ',
+                'ｬ': 'ャ', 'ｭ': 'ュ', 'ｮ': 'ョ', 'ｯ': 'ッ',
+                '｡': '。', '｢': '「', '｣': '」', '､': '、', '･': '・',
+                'ﾞ': '゛', 'ﾟ': '゜'
+            };
+            
+            let converted = text;
+            
+            // 1. 半角カナの濁音・半濁音を先に処理
+            converted = converted.replace(/(ｶ|ｷ|ｸ|ｹ|ｺ|ｻ|ｼ|ｽ|ｾ|ｿ|ﾀ|ﾁ|ﾂ|ﾃ|ﾄ|ﾊ|ﾋ|ﾌ|ﾍ|ﾎ)ﾞ/g, function(match, char) {
+                const dakutenMap = {
+                    'ｶ': 'ガ', 'ｷ': 'ギ', 'ｸ': 'グ', 'ｹ': 'ゲ', 'ｺ': 'ゴ',
+                    'ｻ': 'ザ', 'ｼ': 'ジ', 'ｽ': 'ズ', 'ｾ': 'ゼ', 'ｿ': 'ゾ',
+                    'ﾀ': 'ダ', 'ﾁ': 'ヂ', 'ﾂ': 'ヅ', 'ﾃ': 'デ', 'ﾄ': 'ド',
+                    'ﾊ': 'バ', 'ﾋ': 'ビ', 'ﾌ': 'ブ', 'ﾍ': 'ベ', 'ﾎ': 'ボ'
+                };
+                return dakutenMap[char] || match;
+            });
+            
+            converted = converted.replace(/(ﾊ|ﾋ|ﾌ|ﾍ|ﾎ)ﾟ/g, function(match, char) {
+                const handakutenMap = {
+                    'ﾊ': 'パ', 'ﾋ': 'ピ', 'ﾌ': 'プ', 'ﾍ': 'ペ', 'ﾎ': 'ポ'
+                };
+                return handakutenMap[char] || match;
+            });
+            
+            // 2. 残りの半角カナを全角カナに変換
+            converted = converted.replace(/[ｦ-ﾟ]/g, function(char) {
+                return halfToFullKanaMap[char] || char;
+            });
+            
+            // 3. ASCII文字（英数字記号）を全角に変換
+            converted = converted.replace(/[!-~]/g, function(char) {
+                return String.fromCharCode(char.charCodeAt(0) + 0xFEE0);
+            });
+            
+            return converted;
+        }
+        
         // テキストを行に分割
+        // 改良版: 単語境界を考慮した改行処理
         function splitTextIntoLines(text) {
             const lines = text.split('\n');
             const resultLines = [];
@@ -922,28 +1089,149 @@
                     continue;
                 }
                 
-                let currentLine = '';
-                let currentWidth = 0;
-                
-                for (const char of line) {
-                    const charWidth = isFullWidth(char) ? 2 : 1;
-                    
-                    if (currentWidth + charWidth > settings.maxCharsPerLine * 2) {
-                        resultLines.push(currentLine);
-                        currentLine = char;
-                        currentWidth = charWidth;
-                    } else {
-                        currentLine += char;
-                        currentWidth += charWidth;
-                    }
-                }
-                
-                if (currentLine.length > 0) {
-                    resultLines.push(currentLine);
-                }
+                // 改行処理を実行
+                const brokenLines = smartLineBreak(line, settings.maxCharsPerLine);
+                resultLines.push(...brokenLines);
             }
             
             return resultLines;
+        }
+        
+        // スマート改行処理のメイン関数
+        function smartLineBreak(text, maxCharsPerLine) {
+            const maxWidth = maxCharsPerLine * 2; // 全角基準
+            const segments = tokenizeText(text);
+            const resultLines = [];
+            let currentLine = '';
+            let currentWidth = 0;
+            
+            for (const segment of segments) {
+                const segmentWidth = calculateTextWidth(segment.text);
+                
+                // 現在の行に追加できるかチェック
+                if (currentWidth + segmentWidth <= maxWidth) {
+                    currentLine += segment.text;
+                    currentWidth += segmentWidth;
+                } else {
+                    // 現在の行に収まらない場合
+                    if (currentLine.trim()) {
+                        resultLines.push(currentLine.trim());
+                    }
+                    
+                    // セグメントが1行の幅を超える場合は文字単位で分割
+                    if (segmentWidth > maxWidth) {
+                        const forceBrokenLines = forceBreakLongSegment(segment.text, maxWidth);
+                        resultLines.push(...forceBrokenLines.slice(0, -1));
+                        
+                        const lastLine = forceBrokenLines[forceBrokenLines.length - 1];
+                        currentLine = lastLine;
+                        currentWidth = calculateTextWidth(lastLine);
+                    } else {
+                        currentLine = segment.text;
+                        currentWidth = segmentWidth;
+                    }
+                }
+            }
+            
+            if (currentLine.trim()) {
+                resultLines.push(currentLine.trim());
+            }
+            
+            return resultLines.length > 0 ? resultLines : [''];
+        }
+        
+        // テキストをセグメントに分割
+        function tokenizeText(text) {
+            const segments = [];
+            // [\s\u3000]+ を [ \u3000]+ に変更（半角スペースと全角スペースを明示的に分離）
+            const regex = /([0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]|[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*|[^ \u3000]+|[ ]+|[\u3000]+)/g;
+            let match;
+            
+            while ((match = regex.exec(text)) !== null) {
+                const segment = match[1];
+                
+                if (/^[0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]$/.test(segment)) {
+                    segments.push({ type: 'unit', text: segment });
+                } else if (/^[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*$/.test(segment)) {
+                    segments.push({ type: 'word', text: segment });
+                } else if (/^ +$/.test(segment)) {
+                    // 半角スペースのみ
+                    segments.push({ type: 'space', text: segment });
+                } else if (/^\u3000+$/.test(segment)) {
+                    // 全角スペースのみ
+                    segments.push({ type: 'fullwidth_space', text: segment });
+                } else {
+                    segments.push({ type: 'other', text: segment });
+                }
+            }
+            
+            return segments;
+        }
+        
+        // テキストの表示幅を計算
+        function calculateTextWidth(text) {
+            let width = 0;
+            for (const char of text) {
+                width += isFullWidth(char) ? 2 : 1;
+            }
+            return width;
+        }
+        
+        // 長いセグメントを強制的に分割
+        function forceBreakLongSegment(text, maxWidth) {
+            const lines = [];
+            let currentLine = '';
+            let currentWidth = 0;
+            
+            for (const char of text) {
+                const charWidth = isFullWidth(char) ? 2 : 1;
+                
+                if (currentWidth + charWidth > maxWidth && currentLine.length > 0) {
+                    lines.push(currentLine);
+                    currentLine = char;
+                    currentWidth = charWidth;
+                } else {
+                    currentLine += char;
+                    currentWidth += charWidth;
+                }
+            }
+            
+            if (currentLine.length > 0) {
+                lines.push(currentLine);
+            }
+            
+            return lines.length > 0 ? lines : [''];
+        }
+        
+        // より高度な改行ルール（オプション）
+        function advancedJapaneseLineBreak(text, maxCharsPerLine) {
+            // 日本語の改行禁則文字
+            const noBreakBefore = /[、。！？」』】〉》〕］｝）]/;
+            const noBreakAfter = /[「『【〈《〔［｛（]/;
+            const preferBreakAfter = /[。！？]/;
+            
+            // 基本的な改行処理を実行
+            const basicLines = smartLineBreak(text, maxCharsPerLine);
+            const improvedLines = [];
+            
+            for (let line of basicLines) {
+                // 禁則文字のチェックと調整
+                line = adjustLineBreakRules(line, noBreakBefore, noBreakAfter);
+                improvedLines.push(line);
+            }
+            
+            return improvedLines;
+        }
+        
+        // 禁則文字処理（簡略版）
+        function adjustLineBreakRules(line, noBreakBefore, noBreakAfter) {
+            // 行末が禁則文字で始まる場合の調整（簡略実装）
+            if (line.length > 1 && noBreakBefore.test(line.charAt(0))) {
+                // 前の行に移動すべきだが、ここでは簡略化
+                return line;
+            }
+            
+            return line;
         }
         
         // 表示を更新
@@ -1028,6 +1316,14 @@
                 fullText = processedText;
             }
             
+            // 音声認識由来の不適切なスペースを除去
+            fullText = cleanupSpeechText(fullText);
+            
+            // 全角変換モードが有効な場合
+            if (settings.fullWidthMode) {
+                fullText = convertToFullWidth(fullText);
+            }
+            
             // 行に分割
             const newLines = splitTextIntoLines(fullText);
             const previousLineCount = textLineArray.length;
@@ -1059,6 +1355,9 @@
             
             // 設定を読み込み
             loadSettings();
+            
+            // 辞書ファイルを読み込み
+            loadSpacedNamesDictionary();
             
             // 設定パネルを初期化
             initSettingsPanel();

@@ -23,15 +23,18 @@
         h1 {
             color: #333;
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
+            font-size: 18px; /* 小さくしました */
+            font-weight: bold;
         }
         
         .status {
             background-color: #e8f5e8;
-            padding: 15px;
+            padding: 8px 15px; /* 高さを狭くしました */
             border-radius: 5px;
             margin-bottom: 20px;
             border-left: 4px solid #4CAF50;
+            font-size: 14px; /* フォントも小さく */
         }
         
         .status.connecting {
@@ -189,7 +192,7 @@
         
         .input-area textarea {
             width: 100%;
-            height: 100px;
+            height: 140px; /* デフォルト7行分（動的に変更される） */
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 3px;
@@ -217,56 +220,16 @@
             gap: 15px;
         }
         
-        .send-btn {
-            padding: 10px 30px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            flex-shrink: 0;
-        }
-        
-        .send-btn:hover:not(:disabled) {
-            background-color: #218838;
-        }
-        
-        .send-btn.has-permission {
-            background-color: #28a745;
-            box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);
-            font-size: 18px;
-            padding: 12px 40px;
-            font-weight: bold;
-            animation: buttonPulse 2s ease-in-out infinite alternate;
-        }
-        
-        @keyframes buttonPulse {
-            from {
-                box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);
-            }
-            to {
-                box-shadow: 0 0 25px rgba(40, 167, 69, 0.6);
-            }
-        }
-        
-        .send-btn.has-permission:hover {
-            background-color: #218838;
-            box-shadow: 0 0 30px rgba(40, 167, 69, 0.6);
-        }
-        
-        .send-btn:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-            box-shadow: none;
-            animation: none;
+        .keyboard-hint {
+            color: #6c757d;
+            font-size: 14px;
+            flex: 1;
         }
         
         .input-status {
             color: #6c757d;
             font-size: 14px;
-            flex: 1;
+            flex-shrink: 0;
         }
         
         .input-status.active {
@@ -341,12 +304,24 @@
             margin-left: 8px;
         }
         
+        .input-lines-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #6c757d;
+            margin-left: 15px;
+        }
+        
+        .input-lines-control label {
+            font-weight: normal;
+        }
+        
         .tier-status {
             margin-left: auto;
             color: #28a745;
             font-size: 12px;
             font-weight: normal;
-            margin-right: 10px;
         }
         
         .tier-status.waiting {
@@ -375,7 +350,7 @@
         
         .tier-input-area textarea {
             width: 100%;
-            height: 80px;
+            height: 140px; /* デフォルト7行分（動的に変更される） */
             padding: 12px;
             border: 2px solid #ddd;
             border-radius: 4px;
@@ -491,6 +466,74 @@
             margin-left: auto;
         }
         
+        /* バージョン情報 */
+        .version-info {
+            background-color: #007bff;
+            color: white;
+            padding: 5px 15px;
+            text-align: center;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        
+        /* ヘッダー内の文字数ガイド設定 */
+        .char-guide-controls-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            font-weight: normal;
+        }
+        
+        .char-guide-controls-header .char-guide-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .char-guide-controls-header .char-guide-setting {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+        }
+        
+        .char-guide-controls-header .char-guide-setting input[type="number"] {
+            padding: 1px 3px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 11px;
+            width: 50px;
+        }
+        
+        /* 現在行文字数表示 */
+        .current-line-counter {
+            background-color: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 3px 3px 0 0;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            font-size: 12px;
+            color: #495057;
+        }
+        
+        .tier-input-area textarea {
+            border-radius: 0 0 4px 4px;
+        }
+        
+        /* 文字数ガイド背景 */
+        .char-guide-background {
+            background: linear-gradient(
+                to right,
+                #f0f8f0 0%,
+                #f0f8f0 var(--guide-percentage, 50%),
+                #ffffff var(--guide-percentage, 50%),
+                #ffffff 100%
+            );
+        }
+        
         .participants-panel {
             background-color: #f8f9fa;
             padding: 20px;
@@ -531,6 +574,11 @@
     </style>
 </head>
 <body>
+    <!-- バージョン情報 -->
+    <div class="version-info">
+        Version 2.1.4 - Build 2025.07.14.005 - 3段個別行数調整機能
+    </div>
+    
     <div class="container">
         <h1>リアルタイム文字起こしシステム</h1>
         
@@ -555,6 +603,10 @@
                 <div class="tier-panel tier-previous">
                     <div class="tier-header">
                         <span id="previousUserName" class="tier-user-name">前の人</span>
+                        <div class="input-lines-control">
+                            <label for="previousLinesNumber">行数:</label>
+                            <input type="number" id="previousLinesNumber" min="2" max="15" value="4" style="width: 45px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; margin: 0 3px;">
+                        </div>
                     </div>
                     <div id="previousUserInput" class="tier-content">
                         待機中...
@@ -565,14 +617,18 @@
                 <div class="tier-panel tier-current">
                     <div class="tier-header">
                         <span id="currentUserName" class="tier-user-name">あなた</span>
+                        <div class="input-lines-control">
+                            <label for="currentLinesNumber">行数:</label>
+                            <input type="number" id="currentLinesNumber" min="3" max="20" value="7" style="width: 45px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; margin: 0 3px;">
+                        </div>
                         <span id="charCounter" class="char-counter">0文字</span>
                         <span id="currentInputStatus" class="tier-status">入力可能・送信権待ち</span>
                     </div>
+                    
                     <div class="tier-input-area">
                         <textarea id="textInput" placeholder="ここに文字起こし内容を入力してください..."></textarea>
                         <div class="tier-input-controls">
-                            <button id="sendBtn" class="send-btn" disabled>送信</button>
-                            <span class="keyboard-hint">Ctrl+Enter または F12 でも送信</span>
+                            <span class="keyboard-hint">Ctrl+Enter または F12 で送信</span>
                         </div>
                     </div>
                 </div>
@@ -581,9 +637,27 @@
                 <div class="tier-panel tier-next">
                     <div class="tier-header">
                         <span id="nextUserName" class="tier-user-name">次の人</span>
+                        <div class="input-lines-control">
+                            <label for="nextLinesNumber">行数:</label>
+                            <input type="number" id="nextLinesNumber" min="2" max="15" value="4" style="width: 45px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; margin: 0 3px;">
+                        </div>
                     </div>
                     <div id="nextUserInput" class="tier-content">
                         待機中...
+                    </div>
+                </div>
+            </div>
+            <!-- 文字数ガイド表示設定 -->
+            <div class="char-guide-panel">
+                <h3>🎯 文字数ガイド設定</h3>
+                <div class="char-guide-controls">
+                    <label class="char-guide-checkbox">
+                        <input type="checkbox" id="charGuideEnabled"> 文字数ガイド表示
+                    </label>
+                    <div class="char-guide-setting">
+                        <label>目安: </label>
+                        <input type="number" id="charGuideLimit" value="20" min="0.5" max="100" step="0.5" style="width: 60px;">
+                        <span>文字（全角基準）</span>
                     </div>
                 </div>
             </div>
@@ -640,7 +714,6 @@
         const participantCount = document.getElementById('participantCount');
         
         const textInput = document.getElementById('textInput');
-        const sendBtn = document.getElementById('sendBtn');
         
         // ログ関連の要素
         const logShowBtn = document.getElementById('logShowBtn');
@@ -667,6 +740,19 @@
         let allParticipants = []; // 全参加者を保持
         let messageCount = 0; // ログ件数をトラッキング
         let logWindow = null; // ログウィンドウの参照
+        
+        // 入力行数設定（3段それぞれ個別）
+        let inputLinesSettings = {
+            previous: 4,  // 前の人の表示行数
+            current: 7,   // 自分の入力行数
+            next: 4       // 次の人の表示行数
+        };
+        
+        // 文字数ガイド設定
+        let charGuideSettings = {
+            enabled: false,
+            charLimit: 20.0
+        };
         
         // Socket.io接続イベント
         socket.on('connect', () => {
@@ -784,7 +870,76 @@
             console.log('ログウィンドウを開きました:', logUrl);
         }
         
-        // 文字数をカウント（全角相当）
+        // 入力行数設定を読み込み
+        function loadInputLinesSettings() {
+            try {
+                const saved = localStorage.getItem('inputLinesSettings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(inputLinesSettings, parsed);
+                }
+            } catch (error) {
+                console.error('入力行数設定の読み込みに失敗:', error);
+            }
+            
+            // UIに反映
+            document.getElementById('previousLinesNumber').value = inputLinesSettings.previous;
+            document.getElementById('currentLinesNumber').value = inputLinesSettings.current;
+            document.getElementById('nextLinesNumber').value = inputLinesSettings.next;
+            
+            // テキストエリアの高さを更新
+            updateTextAreaHeight();
+            
+            console.log('入力行数設定読み込み完了:', inputLinesSettings);
+        }
+        
+        // 入力行数設定を保存
+        function saveInputLinesSettings() {
+            try {
+                localStorage.setItem('inputLinesSettings', JSON.stringify(inputLinesSettings));
+                console.log('入力行数設定保存完了:', inputLinesSettings);
+            } catch (error) {
+                console.error('入力行数設定の保存に失敗:', error);
+            }
+        }
+        
+        // テキストエリアの高さを更新（個別対応）
+        function updateTextAreaHeight() {
+            const lineHeight = 20; // 1行あたりの高さ（px）
+            const inputPadding = 24; // 入力エリアの上下パディング合計
+            const contentPadding = 24; // 表示エリアの上下パディング合計
+            
+            // 自分の入力エリア（テキストエリア）
+            const currentHeight = (inputLinesSettings.current * lineHeight) + inputPadding;
+            const textInput = document.getElementById('textInput');
+            if (textInput) {
+                textInput.style.height = `${currentHeight}px`;
+            }
+            
+            // 前の人の表示エリア
+            const previousHeight = (inputLinesSettings.previous * lineHeight) + contentPadding;
+            const previousUserInput = document.getElementById('previousUserInput');
+            if (previousUserInput) {
+                previousUserInput.style.minHeight = `${previousHeight - contentPadding}px`;
+                previousUserInput.style.maxHeight = `${previousHeight - contentPadding}px`;
+                previousUserInput.style.overflow = 'auto';
+            }
+            
+            // 次の人の表示エリア
+            const nextHeight = (inputLinesSettings.next * lineHeight) + contentPadding;
+            const nextUserInput = document.getElementById('nextUserInput');
+            if (nextUserInput) {
+                nextUserInput.style.minHeight = `${nextHeight - contentPadding}px`;
+                nextUserInput.style.maxHeight = `${nextHeight - contentPadding}px`;
+                nextUserInput.style.overflow = 'auto';
+            }
+            
+            console.log(`テキストエリア高さ更新:`, {
+                previous: `${inputLinesSettings.previous}行 = ${previousHeight-contentPadding}px`,
+                current: `${inputLinesSettings.current}行 = ${currentHeight}px`,
+                next: `${inputLinesSettings.next}行 = ${nextHeight-contentPadding}px`
+            });
+        }
         function countCharacters(text) {
             let count = 0;
             for (let i = 0; i < text.length; i++) {
@@ -827,10 +982,104 @@
             const charCount = getCurrentLineCharCount();
             // 整数の場合は「6文字」、小数の場合は「6.5文字」と表示
             const displayCount = charCount % 1 === 0 ? charCount.toString() : charCount.toString();
-            charCounter.textContent = `${displayCount}文字`;
+            charCounter.textContent = `現在行: ${displayCount}文字`;
         }
         
-        // 接続情報を更新する関数
+        // 文字数ガイド設定を読み込み
+        function loadCharGuideSettings() {
+            try {
+                const saved = localStorage.getItem('charGuideSettings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(charGuideSettings, parsed);
+                }
+            } catch (error) {
+                console.error('文字数ガイド設定の読み込みに失敗:', error);
+            }
+            
+            // UIに反映
+            document.getElementById('charGuideEnabled').checked = charGuideSettings.enabled;
+            document.getElementById('charGuideLimit').value = charGuideSettings.charLimit;
+            
+            console.log('文字数ガイド設定読み込み完了:', charGuideSettings);
+            
+            // 起動時に背景を適用（遅延実行で確実に適用）
+            setTimeout(() => {
+                updateCharGuideBackground();
+                console.log('起動時背景更新実行');
+            }, 100);
+        }
+        
+        // 文字数ガイド設定を保存
+        function saveCharGuideSettings() {
+            try {
+                localStorage.setItem('charGuideSettings', JSON.stringify(charGuideSettings));
+            } catch (error) {
+                console.error('文字数ガイド設定の保存に失敗:', error);
+            }
+        }
+        
+        // 文字数ガイド背景を更新
+        function updateCharGuideBackground() {
+            const textarea = textInput;
+            
+            if (!textarea) {
+                console.warn('テキストエリアが見つかりません');
+                return;
+            }
+            
+            if (!charGuideSettings.enabled) {
+                textarea.classList.remove('char-guide-background');
+                textarea.style.removeProperty('--guide-percentage');
+                console.log('文字数ガイド無効化');
+                return;
+            }
+            
+            // DOM要素が完全に描画されるまで待機
+            if (textarea.clientWidth === 0) {
+                console.log('テキストエリア未描画のため再試行');
+                setTimeout(updateCharGuideBackground, 50);
+                return;
+            }
+            
+            // より正確な文字幅計算
+            const style = window.getComputedStyle(textarea);
+            const fontSize = parseFloat(style.fontSize);
+            const fontFamily = style.fontFamily;
+            
+            // Canvas を使用して実際の文字幅を測定
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.font = `${fontSize}px ${fontFamily}`;
+            
+            // 全角文字の幅を測定
+            const fullWidthChar = 'あ';
+            const fullWidthCharWidth = ctx.measureText(fullWidthChar).width;
+            
+            // テキストエリアの実際の幅を取得
+            const textareaStyle = window.getComputedStyle(textarea);
+            const paddingLeft = parseFloat(textareaStyle.paddingLeft) || 0;
+            const paddingRight = parseFloat(textareaStyle.paddingRight) || 0;
+            const textareaWidth = textarea.clientWidth - paddingLeft - paddingRight;
+            
+            // 設定文字数分の実際の幅を計算（全角文字基準）
+            const targetWidth = charGuideSettings.charLimit * fullWidthCharWidth;
+            const limitPercentage = Math.min((targetWidth / textareaWidth) * 100, 100);
+            
+            textarea.classList.add('char-guide-background');
+            textarea.style.setProperty('--guide-percentage', `${limitPercentage}%`);
+            
+            console.log('文字数ガイド更新（改善版）:', {
+                charLimit: charGuideSettings.charLimit,
+                fontSize: fontSize,
+                fullWidthCharWidth: fullWidthCharWidth,
+                textareaWidth: textareaWidth,
+                targetWidth: targetWidth,
+                limitPercentage: `${limitPercentage}%`,
+                enabled: charGuideSettings.enabled
+            });
+        }
+        
         function updateConnectionInfo(serverInfo) {
             const connectionInfo = document.querySelector('.connection-info');
             if (connectionInfo) {
@@ -925,25 +1174,28 @@
             if (hasSenderPermission) {
                 console.log('送信権あり - UI更新');
                 textInput.disabled = false;
-                sendBtn.disabled = false;
                 currentInputStatus.textContent = '送信可能';
                 currentInputStatus.className = 'tier-status';
                 textInput.className = 'has-permission';
-                sendBtn.className = 'send-btn has-permission';
             } else {
                 console.log('送信権なし - UI更新');
                 textInput.disabled = false; // 送信権がなくても入力は可能
-                sendBtn.disabled = true;
                 currentInputStatus.textContent = '送信権待ち';
                 currentInputStatus.className = 'tier-status waiting';
                 textInput.className = '';
-                sendBtn.className = 'send-btn';
             }
         }
         
-        // 送信ボタンのイベント
-        sendBtn.addEventListener('click', () => {
+        // 送信処理（キーボードショートカットのみ）
+        function sendText() {
             const text = textInput.value.trim();
+            
+            // 送信権チェック
+            const hasSenderPermission = myParticipant && currentSender && currentSender.id === myParticipant.id;
+            if (!hasSenderPermission) {
+                console.log('送信権がないため送信できません');
+                return;
+            }
             
             if (!text) {
                 // テキストが空の場合は、送信権のみ次に移す（メッセージ送信なし）
@@ -958,15 +1210,21 @@
             
             textInput.value = ''; // 送信後にクリア
             updateCharCounter(); // 文字数カウンターをリセット
-        });
+        }
         
         // Enterキー（Ctrl+Enter）で送信
         textInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && e.ctrlKey) {
                 e.preventDefault();
-                if (!sendBtn.disabled) {
-                    sendBtn.click();
-                }
+                sendText();
+            }
+        });
+        
+        // F12キーで送信（グローバル）
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F12') {
+                e.preventDefault();
+                sendText();
             }
         });
         
@@ -974,6 +1232,61 @@
         textInput.addEventListener('input', updateCharCounter);
         textInput.addEventListener('keyup', updateCharCounter);
         textInput.addEventListener('click', updateCharCounter);
+        
+        // 入力行数設定のイベントリスナー（個別対応）
+        document.getElementById('previousLinesNumber').addEventListener('change', (e) => {
+            const value = parseInt(e.target.value);
+            if (value >= 2 && value <= 15) {
+                inputLinesSettings.previous = value;
+                saveInputLinesSettings();
+                updateTextAreaHeight();
+            } else {
+                e.target.value = inputLinesSettings.previous;
+            }
+        });
+        
+        document.getElementById('currentLinesNumber').addEventListener('change', (e) => {
+            const value = parseInt(e.target.value);
+            if (value >= 3 && value <= 20) {
+                inputLinesSettings.current = value;
+                saveInputLinesSettings();
+                updateTextAreaHeight();
+            } else {
+                e.target.value = inputLinesSettings.current;
+            }
+        });
+        
+        document.getElementById('nextLinesNumber').addEventListener('change', (e) => {
+            const value = parseInt(e.target.value);
+            if (value >= 2 && value <= 15) {
+                inputLinesSettings.next = value;
+                saveInputLinesSettings();
+                updateTextAreaHeight();
+            } else {
+                e.target.value = inputLinesSettings.next;
+            }
+        });
+        
+        // 文字数ガイド設定のイベントリスナー
+        document.getElementById('charGuideEnabled').addEventListener('change', (e) => {
+            charGuideSettings.enabled = e.target.checked;
+            saveCharGuideSettings();
+            updateCharGuideBackground();
+        });
+        
+        document.getElementById('charGuideLimit').addEventListener('change', (e) => {
+            const value = parseFloat(e.target.value);
+            if (value >= 0.5 && value <= 100) {
+                charGuideSettings.charLimit = value;
+                saveCharGuideSettings();
+                updateCharGuideBackground();
+            }
+        });
+        
+        // ウィンドウリサイズ時に背景を再計算
+        window.addEventListener('resize', () => {
+            setTimeout(updateCharGuideBackground, 100);
+        });
         
         // リアルタイム入力を更新
         function updateTypingUser(data) {
@@ -1174,18 +1487,6 @@
             }
         }
         
-        // F12キーで送信（グローバル）
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'F12') {
-                e.preventDefault();
-                if (!sendBtn.disabled) {
-                    sendBtn.click();
-                } else {
-                    console.log('送信権がないため送信できません');
-                }
-            }
-        });
-        
         // ログ統計情報を更新
         async function updateLogStats() {
             try {
@@ -1354,6 +1655,29 @@
 
         // 初期化時にログ統計を更新
         updateLogStats();
+        
+        // 設定を読み込み（DOM完成後に実行）
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM読み込み完了 - 設定初期化開始');
+            loadInputLinesSettings();
+            loadCharGuideSettings();
+        });
+        
+        // DOMContentLoadedが既に発火している場合の対応
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM読み込み完了 - 設定初期化開始');
+                loadInputLinesSettings();
+                loadCharGuideSettings();
+            });
+        } else {
+            // 既にDOM完成している場合は即座に実行
+            console.log('DOM既に完成 - 設定初期化開始');
+            setTimeout(() => {
+                loadInputLinesSettings();
+                loadCharGuideSettings();
+            }, 50);
+        }
     </script>
 </body>
 </html>
