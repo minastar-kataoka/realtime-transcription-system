@@ -1385,6 +1385,18 @@
         document.head.appendChild(script);
         
         function startSocketConnection() {
+            // URLパラメータからroomIdを取得
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
+            
+            if (!roomId) {
+                alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+                window.location.href = '/room-manager';
+                return;
+            }
+            
+            console.log('表示画面 - ルームID:', roomId);
+            
             const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const socketUrl = isLocalDevelopment ? 'http://localhost:3000' : '';
             
@@ -1394,6 +1406,10 @@
                 statusIndicator.className = 'status-indicator connected';
                 connectionText.textContent = '接続済み';
                 console.log('接続成功:', socket.id);
+                
+                // 表示画面もルームに参加
+                socket.emit('join_display', { roomId: roomId });
+                console.log('join_displayイベント送信:', roomId);
             });
             
             socket.on('disconnect', () => {

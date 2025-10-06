@@ -47,6 +47,11 @@ app.get('/translation-test', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'translation-test.html'));
 });
 
+// ルーム管理画面(新規追加)
+app.get('/room-manager', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'room-manager.html'));
+});
+
 // 参加者管理
 let participants = [];
 let currentSenderIndex = 0; // 現在の送信権保持者のインデックス
@@ -54,6 +59,14 @@ let currentSenderIndex = 0; // 現在の送信権保持者のインデックス
 // ログデータ管理
 let sessionLog = [];
 let sessionStartTime = new Date();
+
+// ルーム管理(BtoBサービス化対応)
+const rooms = new Map(); // roomId -> { participants, logs, settings, createdAt }
+
+// ルームIDの生成
+function generateRoomId() {
+  return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+}
 
 // テイク機能管理（新規追加）
 let systemMode = 'realtime'; // 'realtime' | 'take'
@@ -130,20 +143,24 @@ function resetSessionLog() {
 }
 
 // メッセージをログに追加
-function addMessageToLog(message, sender) {
+function addMessageToLog(room, message, sender) {
+  if (!room) return;
+  
   const logEntry = {
     id: Date.now(),
     timestamp: new Date(),
     sender: sender,
     text: message,
-    sessionTime: Date.now() - sessionStartTime.getTime() // セッション開始からの経過時間（ms）
+    sessionTime: Date.now() - room.sessionStartTime.getTime()
   };
-  sessionLog.push(logEntry);
+  room.sessionLog.push(logEntry);
   console.log(`ログ追加: [${sender}] ${message}`);
 }
 
 // テイクキューにメッセージを追加
-function addToTakeQueue(message, sender) {
+function addToTakeQueue(room, message, sender) {
+  if (!room) return;
+  
   const queueItem = {
     id: Date.now(),
     timestamp: new Date(),
@@ -152,40 +169,42 @@ function addToTakeQueue(message, sender) {
     status: 'waiting'
   };
   
-  takeQueue.push(queueItem);
+  room.takeQueue.push(queueItem);
   console.log(`テイクキューに追加: [${sender}] ${message}`);
   
   // キューの状態チェック
-  checkQueueStatus();
+  checkQueueStatus(room);
   
   // 管理画面にキュー更新を通知
-  io.to('admin').emit('take_queue_updated', {
-    queue: takeQueue,
-    count: takeQueue.length
+  io.to('admin-' + room.id).emit('take_queue_updated', {
+    queue: room.takeQueue,
+    count: room.takeQueue.length
   });
 }
 
 // キューの状態チェック
-function checkQueueStatus() {
-  const currentSize = takeQueue.length;
+function checkQueueStatus(room) {
+  if (!room) return;
+  
+  const currentSize = room.takeQueue.length;
   
   console.log(`キュー状態チェック: ${currentSize}/${queueSettings.emergencyThreshold}件`);
   
   if (currentSize >= queueSettings.emergencyThreshold) {
     // 緊急: 強制リアルタイムモード切替
-    if (systemMode === 'take') {
+    if (room.systemMode === 'take') {
       console.log('🚨 緊急自動切替: キューが満杯になりました');
-      systemMode = 'realtime';
-      isEmergencyMode = true;
+      room.systemMode = 'realtime';
+      room.isEmergencyMode = true;
       
-      // 全クライアントに通知
-      io.emit('system_mode_changed', { 
+      // ルーム内の全クライアントに通知
+      io.to(room.id).emit('system_mode_changed', { 
         mode: 'realtime',
         reason: 'emergency_queue_full'
       });
       
       // 管理画面に緊急切替を通知
-      io.to('admin').emit('emergency_realtime_switched', {
+      io.to('admin-' + room.id).emit('emergency_realtime_switched', {
         reason: 'キュー緊急満杯',
         queueSize: currentSize,
         message: 'テイクモードを緊急停止し、リアルタイム送出に切替ました'
@@ -193,14 +212,14 @@ function checkQueueStatus() {
     }
   } else if (currentSize >= queueSettings.criticalThreshold) {
     // 危険レベル警告
-    io.to('admin').emit('queue_critical', {
+    io.to('admin-' + room.id).emit('queue_critical', {
       count: currentSize,
       threshold: queueSettings.criticalThreshold,
       message: '⚠️ 危険: まもなく自動切替されます'
     });
   } else if (currentSize >= queueSettings.warnThreshold) {
     // 注意レベル警告
-    io.to('admin').emit('queue_warning', {
+    io.to('admin-' + room.id).emit('queue_warning', {
       count: currentSize,
       threshold: queueSettings.warnThreshold,
       message: '⚠️ 注意: キューが蓄積しています'
@@ -209,13 +228,15 @@ function checkQueueStatus() {
 }
 
 // 復帰可能性チェック
-function checkReturnAvailability() {
-  if (isEmergencyMode && systemMode === 'realtime') {
+function checkReturnAvailability(room) {
+  if (!room) return;
+  
+  if (room.isEmergencyMode && room.systemMode === 'realtime') {
     const returnThreshold = queueSettings.emergencyThreshold - queueSettings.returnMargin;
     
-    if (takeQueue.length <= returnThreshold) {
-      io.to('admin').emit('take_mode_available', {
-        currentQueue: takeQueue.length,
+    if (room.takeQueue.length <= returnThreshold) {
+      io.to('admin-' + room.id).emit('take_mode_available', {
+        currentQueue: room.takeQueue.length,
         threshold: returnThreshold,
         message: `キューが${returnThreshold}件以下になりました。テイクモードに復帰できます`
       });
@@ -224,10 +245,10 @@ function checkReturnAvailability() {
 }
 
 // CSV生成関数
-function generateCSV(type) {
-  console.log(`CSV生成開始: ${type}, ログ件数: ${sessionLog.length}`);
+function generateCSV(type, room) {
+  console.log(`CSV生成開始: ${type}, ログ件数: ${room.sessionLog.length}`);
   
-  if (sessionLog.length === 0) {
+  if (room.sessionLog.length === 0) {
     console.log('ログデータなし');
     return 'データがありません\n';
   }
@@ -235,25 +256,21 @@ function generateCSV(type) {
   let csvContent = '';
   
   if (type === 'text-only') {
-    // テキストのみのCSV
     csvContent = 'テキスト\n';
-    sessionLog.forEach((entry, index) => {
-      // CSVエスケープ処理
+    room.sessionLog.forEach((entry, index) => {
       const escapedText = `"${entry.text.replace(/"/g, '""')}"`;
       csvContent += `${escapedText}\n`;
       console.log(`テキスト追加 ${index + 1}: ${entry.text.substring(0, 20)}...`);
     });
   } else if (type === 'with-timecode') {
-    // タイムコード付きCSV
     csvContent = '送信者,送信時刻,経過時間,テキスト\n';
-    sessionLog.forEach((entry, index) => {
+    room.sessionLog.forEach((entry, index) => {
       const timeString = entry.timestamp.toLocaleTimeString('ja-JP');
       const elapsedSeconds = Math.floor(entry.sessionTime / 1000);
       const elapsedMinutes = Math.floor(elapsedSeconds / 60);
       const remainingSeconds = elapsedSeconds % 60;
       const timecode = `${elapsedMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
       
-      // CSVエスケープ処理
       const escapedSender = `"${entry.sender.replace(/"/g, '""')}"`;
       const escapedText = `"${entry.text.replace(/"/g, '""')}"`;
       
@@ -268,12 +285,20 @@ function generateCSV(type) {
 
 // メッセージ一覧を取得するAPI
 app.get('/api/messages', (req, res) => {
-  console.log(`メッセージ一覧取得: ${sessionLog.length}件`);
+  const roomId = req.query.room;
+  
+  if (!roomId || !rooms.has(roomId)) {
+    return res.status(400).json({ error: '無効なルームIDです' });
+  }
+  
+  const room = rooms.get(roomId);
+  console.log(`メッセージ一覧取得: ${room.sessionLog.length}件`);
+  
   res.json({
     success: true,
-    messages: sessionLog,
-    totalMessages: sessionLog.length,
-    sessionStartTime: sessionStartTime
+    messages: room.sessionLog,
+    totalMessages: room.sessionLog.length,
+    sessionStartTime: room.sessionStartTime
   });
 });
 
@@ -350,8 +375,16 @@ app.post('/api/translation-config', (req, res) => {
 // ログエクスポート用エンドポイント
 app.get('/api/export/:type', (req, res) => {
   const type = req.params.type;
-  console.log(`エクスポートリクエスト受信: ${type}`);
-  console.log(`現在のログ件数: ${sessionLog.length}`);
+  const roomId = req.query.room;
+  
+  console.log(`エクスポートリクエスト受信: ${type}, ルームID: ${roomId}`);
+  
+  if (!roomId || !rooms.has(roomId)) {
+    return res.status(400).json({ error: '無効なルームIDです' });
+  }
+  
+  const room = rooms.get(roomId);
+  console.log(`現在のログ件数: ${room.sessionLog.length}`);
   
   if (type !== 'text-only' && type !== 'with-timecode') {
     console.error(`無効なエクスポートタイプ: ${type}`);
@@ -359,7 +392,7 @@ app.get('/api/export/:type', (req, res) => {
   }
   
   try {
-    const csvData = generateCSV(type);
+    const csvData = generateCSV(type, room);
     console.log(`CSV生成完了: ${csvData.length}文字`);
     
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
@@ -370,7 +403,6 @@ app.get('/api/export/:type', (req, res) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     
-    // UTF-8 BOM を追加（Excelでの文字化け防止）
     const bom = '\uFEFF';
     const responseData = bom + csvData;
     
@@ -380,6 +412,95 @@ app.get('/api/export/:type', (req, res) => {
   } catch (error) {
     console.error('CSV生成エラー:', error);
     res.status(500).json({ error: 'CSV生成に失敗しました', details: error.message });
+  }
+});
+
+// ルームの作成API
+app.post('/api/rooms/create', (req, res) => {
+  const { projectName } = req.body;
+  const roomId = generateRoomId();
+  
+  rooms.set(roomId, {
+    id: roomId,
+    projectName: projectName || '無題プロジェクト',
+    participants: [],
+    currentSenderIndex: 0,
+    sessionLog: [],
+    sessionStartTime: new Date(),
+    takeQueue: [],
+    systemMode: 'realtime',
+    isEmergencyMode: false,
+    createdAt: new Date()
+  });
+  
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://minart-bacec6fffc57.herokuapp.com'
+    : `http://localhost:${PORT}`;
+  
+  console.log(`新規ルーム作成: ${roomId} - ${projectName}`);
+  
+  res.json({
+    success: true,
+    roomId: roomId,
+    projectName: projectName,
+    urls: {
+      operator: `${baseUrl}/?room=${roomId}`,
+      display: `${baseUrl}/display?room=${roomId}`,
+      admin: `${baseUrl}/admin?room=${roomId}`,
+      logs: `${baseUrl}/logs?room=${roomId}`
+    }
+  });
+});
+
+// ルーム一覧取得API
+app.get('/api/rooms/list', (req, res) => {
+  const roomList = Array.from(rooms.entries()).map(([id, room]) => ({
+    id: id,
+    projectName: room.projectName,
+    participantCount: room.participants.length,
+    messageCount: room.sessionLog.length,
+    systemMode: room.systemMode,
+    createdAt: room.createdAt
+  }));
+  
+  res.json({
+    success: true,
+    rooms: roomList
+  });
+});
+
+// ルーム削除API
+app.delete('/api/rooms/:roomId', (req, res) => {
+  const roomId = req.params.roomId;
+  
+  if (rooms.has(roomId)) {
+    rooms.delete(roomId);
+    console.log(`ルーム削除: ${roomId}`);
+    res.json({ success: true, message: 'ルームを削除しました' });
+  } else {
+    res.status(404).json({ success: false, error: 'ルームが見つかりません' });
+  }
+});
+
+// ルーム情報取得API
+app.get('/api/rooms/:roomId', (req, res) => {
+  const roomId = req.params.roomId;
+  
+  if (rooms.has(roomId)) {
+    const room = rooms.get(roomId);
+    res.json({
+      success: true,
+      room: {
+        id: room.id,
+        projectName: room.projectName,
+        participantCount: room.participants.length,
+        messageCount: room.sessionLog.length,
+        systemMode: room.systemMode,
+        createdAt: room.createdAt
+      }
+    });
+  } else {
+    res.status(404).json({ success: false, error: 'ルームが見つかりません' });
   }
 });
 
@@ -401,7 +522,18 @@ app.get('/api/log-stats', (req, res) => {
 
 // ログクリア
 app.post('/api/clear-log', (req, res) => {
-  resetSessionLog();
+  const roomId = req.body.roomId || req.query.room;
+  
+  if (!roomId || !rooms.has(roomId)) {
+    return res.status(400).json({ error: '無効なルームIDです' });
+  }
+  
+  const room = rooms.get(roomId);
+  room.sessionLog = [];
+  room.sessionStartTime = new Date();
+  
+  console.log(`ルーム ${roomId} のログをクリアしました`);
+  
   res.json({ success: true, message: 'ログをクリアしました' });
 });
 
@@ -467,37 +599,39 @@ app.post('/api/speech-integration/test', (req, res) => {
 // === 音声認識連携API終了 ===
 
 // 送信権を次に移す関数
-function rotateSender() {
-  if (participants.length === 0) {
-    currentSenderIndex = 0;
+function rotateSender(room) {
+  if (!room || room.participants.length === 0) {
+    room.currentSenderIndex = 0;
     return null;
   }
   
-  currentSenderIndex = (currentSenderIndex + 1) % participants.length;
-  return participants[currentSenderIndex];
+  room.currentSenderIndex = (room.currentSenderIndex + 1) % room.participants.length;
+  return room.participants[room.currentSenderIndex];
 }
 
 // 現在の送信権保持者を取得
-function getCurrentSender() {
-  if (participants.length === 0) {
+function getCurrentSender(room) {
+  if (!room || room.participants.length === 0) {
     console.log('参加者がいないため送信権者なし');
     return null;
   }
-  if (currentSenderIndex >= participants.length) {
+  if (room.currentSenderIndex >= room.participants.length) {
     console.log('送信権インデックスが範囲外、リセット');
-    currentSenderIndex = 0;
+    room.currentSenderIndex = 0;
   }
-  const sender = participants[currentSenderIndex];
-  console.log('現在の送信権者取得:', sender ? sender.name : 'なし', 'インデックス:', currentSenderIndex);
+  const sender = room.participants[room.currentSenderIndex];
+  console.log('現在の送信権者取得:', sender ? sender.name : 'なし', 'インデックス:', room.currentSenderIndex);
   return sender;
 }
 
 // 参加者が減った時の送信権調整
-function adjustSenderIndex() {
-  if (participants.length === 0) {
-    currentSenderIndex = 0;
-  } else if (currentSenderIndex >= participants.length) {
-    currentSenderIndex = 0;
+function adjustSenderIndex(room) {
+  if (!room) return;
+  
+  if (room.participants.length === 0) {
+    room.currentSenderIndex = 0;
+  } else if (room.currentSenderIndex >= room.participants.length) {
+    room.currentSenderIndex = 0;
   }
 }
 
@@ -505,17 +639,30 @@ function adjustSenderIndex() {
 io.on('connection', (socket) => {
   console.log('新しいユーザーが接続しました:', socket.id);
   
+  let currentRoomId = null; // このソケットが参加しているルームID
+  let currentRoom = null;   // ルームオブジェクトへの参照
+  
   // 管理画面からの接続を識別
-  socket.on('join_admin', () => {
-    socket.join('admin');
-    console.log('管理画面が接続しました:', socket.id);
+  socket.on('join_admin', (data) => {
+    const roomId = data?.roomId;
+    
+    if (!roomId || !rooms.has(roomId)) {
+      socket.emit('error', { message: '無効なルームIDです' });
+      return;
+    }
+    
+    currentRoomId = roomId;
+    currentRoom = rooms.get(roomId);
+    
+    socket.join('admin-' + roomId);
+    console.log('管理画面が接続しました:', socket.id, 'ルーム:', roomId);
     
     // 現在のシステム状態を送信
     socket.emit('system_status', {
-      mode: systemMode,
-      takeQueue: takeQueue,
-      queueCount: takeQueue.length,
-      isEmergencyMode: isEmergencyMode
+      mode: currentRoom.systemMode,
+      takeQueue: currentRoom.takeQueue,
+      queueCount: currentRoom.takeQueue.length,
+      isEmergencyMode: currentRoom.isEmergencyMode
     });
     
     // 翻訳設定も送信
@@ -524,6 +671,24 @@ io.on('connection', (socket) => {
       targetLanguage: translationConfig.targetLanguage,
       hasApiKey: !!translationConfig.apiKey
     });
+  });
+  
+  // 表示画面からの接続を識別
+  socket.on('join_display', (data) => {
+    const roomId = data?.roomId;
+    
+    if (!roomId || !rooms.has(roomId)) {
+      socket.emit('error', { message: '無効なルームIDです' });
+      return;
+    }
+    
+    currentRoomId = roomId;
+    currentRoom = rooms.get(roomId);
+    
+    // ★重要: Socket.ioのルームに参加（この行が抜けていた可能性）
+    socket.join(roomId);
+    
+    console.log('表示画面が接続しました:', socket.id, 'ルーム:', roomId);
   });
   
   // システム状態取得要求
@@ -637,11 +802,13 @@ io.on('connection', (socket) => {
   
   // 翻訳済みテキスト送出（新規追加）
   socket.on('send_translated_text', (data) => {
-    if (systemMode === 'take') {
+    if (!currentRoom) return;
+    
+    if (currentRoom.systemMode === 'take') {
       const message = {
         id: Date.now(),
         text: data.translatedText,
-        sender: 'テイク担当者（翻訳版）',
+        sender: 'テイク担当者(翻訳版)',
         timestamp: new Date(),
         isTranslated: true,
         originalText: data.originalText,
@@ -651,10 +818,10 @@ io.on('connection', (socket) => {
       console.log(`翻訳版テキスト送出: "${data.translatedText}"`);
       
       // ログに追加
-      addMessageToLog(data.translatedText, 'テイク担当者（翻訳版）');
+      addMessageToLog(currentRoom, data.translatedText, 'テイク担当者(翻訳版)');
       
-      // 表示画面に送信
-      io.emit('text_received', message);
+      // ルーム内の表示画面に送信
+      io.to(currentRoomId).emit('text_received', message);
       
       // 送出完了を通知
       socket.emit('translated_text_sent', {
@@ -666,67 +833,73 @@ io.on('connection', (socket) => {
   
   // システムモード切り替え
   socket.on('toggle_system_mode', (data) => {
-    const newMode = data.mode;
-    console.log(`システムモード切り替え要求: ${systemMode} → ${newMode}`);
+    if (!currentRoom) return;
     
-    if (newMode === 'take' && isEmergencyMode) {
+    const newMode = data.mode;
+    console.log(`システムモード切り替え要求: ${currentRoom.systemMode} → ${newMode}`);
+    
+    if (newMode === 'take' && currentRoom.isEmergencyMode) {
       // 緊急モードからの復帰チェック
       const returnThreshold = queueSettings.emergencyThreshold - queueSettings.returnMargin;
-      if (takeQueue.length > returnThreshold) {
+      if (currentRoom.takeQueue.length > returnThreshold) {
         socket.emit('mode_change_error', {
-          message: `キューが${takeQueue.length}件です。${returnThreshold}件以下にしてから復帰してください`
+          message: `キューが${currentRoom.takeQueue.length}件です。${returnThreshold}件以下にしてから復帰してください`
         });
         return;
       }
-      isEmergencyMode = false;
+      currentRoom.isEmergencyMode = false;
     }
     
-    systemMode = newMode;
-    console.log(`システムモード変更完了: ${systemMode}`);
+    currentRoom.systemMode = newMode;
+    console.log(`システムモード変更完了: ${currentRoom.systemMode}`);
     
-    // 全クライアントに通知
-    io.emit('system_mode_changed', { 
-      mode: systemMode,
+    // ルーム内の全クライアントに通知
+    io.to(currentRoomId).emit('system_mode_changed', { 
+      mode: currentRoom.systemMode,
       reason: 'manual_change'
     });
     
     // 管理画面に状態更新を送信
-    io.to('admin').emit('system_status', {
-      mode: systemMode,
-      takeQueue: takeQueue,
-      queueCount: takeQueue.length,
-      isEmergencyMode: isEmergencyMode
+    io.to('admin-' + currentRoomId).emit('system_status', {
+      mode: currentRoom.systemMode,
+      takeQueue: currentRoom.takeQueue,
+      queueCount: currentRoom.takeQueue.length,
+      isEmergencyMode: currentRoom.isEmergencyMode
     });
   });
   
   // テイクモード復帰
   socket.on('return_to_take_mode', () => {
+    if (!currentRoom) return;
+    
     const returnThreshold = queueSettings.emergencyThreshold - queueSettings.returnMargin;
     
-    if (takeQueue.length > returnThreshold) {
+    if (currentRoom.takeQueue.length > returnThreshold) {
       socket.emit('return_error', {
-        message: `キューが${takeQueue.length}件です。${returnThreshold}件以下にしてから復帰してください（あと${takeQueue.length - returnThreshold}件処理が必要）`
+        message: `キューが${currentRoom.takeQueue.length}件です。${returnThreshold}件以下にしてから復帰してください(あと${currentRoom.takeQueue.length - returnThreshold}件処理が必要)`
       });
       return;
     }
     
-    systemMode = 'take';
-    isEmergencyMode = false;
+    currentRoom.systemMode = 'take';
+    currentRoom.isEmergencyMode = false;
     
-    io.emit('system_mode_changed', { 
+    io.to(currentRoomId).emit('system_mode_changed', { 
       mode: 'take', 
       reason: 'manual_return' 
     });
     
     socket.emit('return_success', {
-      message: `テイクモードに復帰しました（キュー: ${takeQueue.length}件）`
+      message: `テイクモードに復帰しました(キュー: ${currentRoom.takeQueue.length}件)`
     });
   });
   
   // 次のテキストを呼び出し
   socket.on('take_call_next', () => {
-    if (takeQueue.length > 0 && systemMode === 'take') {
-      const nextItem = takeQueue.shift(); // 最古のアイテムを取得・削除
+    if (!currentRoom) return;
+    
+    if (currentRoom.takeQueue.length > 0 && currentRoom.systemMode === 'take') {
+      const nextItem = currentRoom.takeQueue.shift(); // 最古のアイテムを取得・削除
       console.log(`テキスト呼び出し: [${nextItem.sender}] ${nextItem.text}`);
       
       // 呼び出し完了を通知
@@ -737,19 +910,21 @@ io.on('connection', (socket) => {
       });
       
       // キュー更新を管理画面に通知
-      io.to('admin').emit('take_queue_updated', {
-        queue: takeQueue,
-        count: takeQueue.length
+      io.to('admin-' + currentRoomId).emit('take_queue_updated', {
+        queue: currentRoom.takeQueue,
+        count: currentRoom.takeQueue.length
       });
       
       // 復帰可能性をチェック
-      checkReturnAvailability();
+      checkReturnAvailability(currentRoom);
     }
   });
   
   // テイクからテキスト送出
   socket.on('take_send_text', (data) => {
-    if (systemMode === 'take') {
+    if (!currentRoom) return;
+    
+    if (currentRoom.systemMode === 'take') {
       const message = {
         id: Date.now(),
         text: data.text,
@@ -760,10 +935,10 @@ io.on('connection', (socket) => {
       console.log(`テイクからテキスト送出: "${data.text}"`);
       
       // ログに追加
-      addMessageToLog(data.text, 'テイク担当者');
+      addMessageToLog(currentRoom, data.text, 'テイク担当者');
       
-      // 表示画面に送信
-      io.emit('text_received', message);
+      // ルーム内の表示画面に送信
+      io.to(currentRoomId).emit('text_received', message);
       
       // 送出完了を通知
       socket.emit('text_sent', {
@@ -775,42 +950,55 @@ io.on('connection', (socket) => {
   
   // 参加者登録
   socket.on('join', (data) => {
+    const { name, roomId } = data;
+    
+    // ルームIDの検証
+    if (!roomId || !rooms.has(roomId)) {
+      socket.emit('error', { message: '無効なルームIDです' });
+      return;
+    }
+    
+    currentRoomId = roomId;
+    currentRoom = rooms.get(roomId);
+    
+    // Socket.ioのルームに参加
+    socket.join(roomId);
+    
     const participant = {
       id: socket.id,
       name: data.name,
       joinTime: new Date()
     };
     
-    participants.push(participant);
-    console.log(`${data.name} が参加しました (${socket.id})`);
-    console.log('現在の参加者数:', participants.length);
+    currentRoom.participants.push(participant);
+    console.log(`${data.name} がルーム ${roomId} に参加しました (${socket.id})`);
+    console.log('現在の参加者数:', currentRoom.participants.length);
     
     // 最初の参加者の場合、セッションログをリセット
-    if (participants.length === 1) {
-      resetSessionLog();
+    if (currentRoom.participants.length === 1) {
+      currentRoom.sessionLog = [];
+      currentRoom.sessionStartTime = new Date();
+      console.log('セッションログをリセットしました');
     }
     
-    // 送信権を調整（新しい参加者が入った場合）
-    const currentSender = getCurrentSender();
+    // 送信権を調整
+    const currentSender = getCurrentSender(currentRoom);
     console.log('現在の送信権者:', currentSender ? currentSender.name : 'なし');
-    console.log('送信権インデックス:', currentSenderIndex);
     
     // Heroku対応: 実際のアクセスURLを取得
     let serverUrl;
     if (process.env.NODE_ENV === 'production' || process.env.PORT) {
-      // 本番環境（Heroku）の場合
       serverUrl = 'https://minart-bacec6fffc57.herokuapp.com';
     } else {
-      // 開発環境（ローカル）の場合
       const networkInterfaces = os.networkInterfaces();
       let serverIP = 'localhost';
       
       Object.keys(networkInterfaces).forEach((interfaceName) => {
-          networkInterfaces[interfaceName].forEach((network) => {
-              if (network.family === 'IPv4' && !network.internal) {
-                  serverIP = network.address;
-              }
-          });
+        networkInterfaces[interfaceName].forEach((network) => {
+          if (network.family === 'IPv4' && !network.internal) {
+            serverIP = network.address;
+          }
+        });
       });
       
       serverUrl = `http://${serverIP}:${PORT || 3000}`;
@@ -818,27 +1006,29 @@ io.on('connection', (socket) => {
     
     // 参加者本人に参加完了とサーバー情報を通知
     socket.emit('joined', { 
-        success: true, 
-        participant,
-        serverInfo: {
-            ip: serverUrl.replace(/https?:\/\//, '').split(':')[0],
-            port: process.env.PORT || 3000,
-            operatorUrl: serverUrl,
-            displayUrl: `${serverUrl}/display`
-        }
+      success: true, 
+      participant,
+      serverInfo: {
+        ip: serverUrl.replace(/https?:\/\//, '').split(':')[0],
+        port: process.env.PORT || 3000,
+        operatorUrl: `${serverUrl}/?room=${roomId}`,
+        displayUrl: `${serverUrl}/display?room=${roomId}`
+      }
     });
     
-    // 全員に参加者一覧と送信権情報を送信
-    io.emit('participants_updated', {
-      participants: participants,
+    // ルーム内の全員に参加者一覧と送信権情報を送信
+    io.to(roomId).emit('participants_updated', {
+      participants: currentRoom.participants,
       currentSender: currentSender,
-      senderIndex: currentSenderIndex
+      senderIndex: currentRoom.currentSenderIndex
     });
   });
   
   // 送信権を次に移す
   socket.on('next_sender', () => {
-    const currentSender = getCurrentSender();
+    if (!currentRoom) return;
+    
+    const currentSender = getCurrentSender(currentRoom);
     console.log('next_sender呼び出し - 現在の送信権者:', currentSender ? currentSender.name : 'なし');
     console.log('リクエスト者ID:', socket.id);
     
@@ -849,20 +1039,22 @@ io.on('connection', (socket) => {
       return;
     }
     
-    const nextSender = rotateSender();
+    const nextSender = rotateSender(currentRoom);
     console.log(`送信権が ${currentSender.name} から ${nextSender?.name || '(なし)'} に移りました`);
-    console.log('新しい送信権インデックス:', currentSenderIndex);
+    console.log('新しい送信権インデックス:', currentRoom.currentSenderIndex);
     
-    // 全員に送信権更新を通知
-    io.emit('sender_updated', {
+    // ルーム内の全員に送信権更新を通知
+    io.to(currentRoomId).emit('sender_updated', {
       currentSender: nextSender,
-      senderIndex: currentSenderIndex
+      senderIndex: currentRoom.currentSenderIndex
     });
   });
   
   // テキスト送信
   socket.on('send_text', (data) => {
-    const currentSender = getCurrentSender();
+    if (!currentRoom) return;
+    
+    const currentSender = getCurrentSender(currentRoom);
     
     // 送信権を持つ人だけが送信可能
     if (!currentSender || currentSender.id !== socket.id) {
@@ -871,9 +1063,9 @@ io.on('connection', (socket) => {
     }
     
     console.log(`${currentSender.name} がテキストを送信: "${data.text}"`);
-    console.log(`現在のシステムモード: ${systemMode}`);
+    console.log(`現在のシステムモード: ${currentRoom.systemMode}`);
     
-    if (systemMode === 'realtime') {
+    if (currentRoom.systemMode === 'realtime') {
       // リアルタイムモード: 直接表示画面に送信
       const message = {
         id: Date.now(),
@@ -883,36 +1075,38 @@ io.on('connection', (socket) => {
       };
       
       // ログに追加
-      addMessageToLog(data.text, currentSender.name);
+      addMessageToLog(currentRoom, data.text, currentSender.name);
       
-      // 全員にメッセージを送信（表示画面含む）
-      io.emit('text_received', message);
+      // ルーム内の全員にメッセージを送信(表示画面含む)
+      io.to(currentRoomId).emit('text_received', message);
       console.log('リアルタイム送信: text_receivedイベントを送信しました');
       
-    } else if (systemMode === 'take') {
+    } else if (currentRoom.systemMode === 'take') {
       // テイクモード: キューに蓄積
-      addToTakeQueue(data.text, currentSender.name);
+      addToTakeQueue(currentRoom, data.text, currentSender.name);
       console.log('テイクモード: キューに蓄積しました');
     }
     
     // 自動で次の人に送信権を移す
-    const nextSender = rotateSender();
-    console.log(`送信権が ${currentSender.name} から ${nextSender?.name || '(なし)'} に移りました（送信により）`);
+    const nextSender = rotateSender(currentRoom);
+    console.log(`送信権が ${currentSender.name} から ${nextSender?.name || '(なし)'} に移りました(送信により)`);
     
-    // 全員に送信権更新を通知
-    io.emit('sender_updated', {
+    // ルーム内の全員に送信権更新を通知
+    io.to(currentRoomId).emit('sender_updated', {
       currentSender: nextSender,
-      senderIndex: currentSenderIndex
+      senderIndex: currentRoom.currentSenderIndex
     });
   });
   
   // リアルタイム入力
   socket.on('typing', (data) => {
-    const participant = participants.find(p => p.id === socket.id);
+    if (!currentRoom) return;
+    
+    const participant = currentRoom.participants.find(p => p.id === socket.id);
     if (!participant) return;
     
-    // 他の全員に入力内容を送信（送信者以外）
-    socket.broadcast.emit('user_typing', {
+    // ルーム内の他の全員に入力内容を送信(送信者以外)
+    socket.to(currentRoomId).emit('user_typing', {
       userId: socket.id,
       userName: participant.name,
       text: data.text,
@@ -922,11 +1116,13 @@ io.on('connection', (socket) => {
   
   // 入力クリア（送信時）
   socket.on('clear_typing', () => {
-    const participant = participants.find(p => p.id === socket.id);
+    if (!currentRoom) return;
+    
+    const participant = currentRoom.participants.find(p => p.id === socket.id);
     if (!participant) return;
     
-    // 他の全員に入力クリアを通知
-    socket.broadcast.emit('user_clear_typing', {
+    // ルーム内の他の全員に入力クリアを通知
+    socket.to(currentRoomId).emit('user_clear_typing', {
       userId: socket.id
     });
   });
@@ -934,6 +1130,8 @@ io.on('connection', (socket) => {
   // === 音声認識連携機能 ===
   // 音声認識結果の受信処理（Socket.ioイベントハンドラー内に追加）
   socket.on('speech_recognition_result', (data) => {
+    if (!currentRoom) return;
+    
     console.log('🎤 音声認識結果受信:', {
       text: data.text.substring(0, 50) + (data.text.length > 50 ? '...' : ''),
       language: data.language,
@@ -941,14 +1139,11 @@ io.on('connection', (socket) => {
       sender: data.sender
     });
     
-    // 音声認識結果を適切な送信者として設定
     const speechSender = data.sender || 'AI音声認識';
     
-    // システムモードに応じて処理
-    if (systemMode === 'realtime') {
+    if (currentRoom.systemMode === 'realtime') {
       console.log('📺 リアルタイムモード: 直接表示画面に送信');
       
-      // リアルタイムモード: 直接表示画面に送信
       const message = {
         id: Date.now(),
         text: data.text,
@@ -960,26 +1155,20 @@ io.on('connection', (socket) => {
         source: 'speech_recognition'
       };
       
-      // ログに追加
-      addMessageToLog(data.text, speechSender);
-      
-      // 全員にメッセージを送信（表示画面含む）
-      io.emit('text_received', message);
+      addMessageToLog(currentRoom, data.text, speechSender);
+      io.to(currentRoomId).emit('text_received', message);
       console.log('✅ 音声認識結果をリアルタイム送信完了');
       
-    } else if (systemMode === 'take') {
+    } else if (currentRoom.systemMode === 'take') {
       console.log('📋 テイクモード: キューに蓄積');
-      
-      // テイクモード: キューに蓄積
-      addToTakeQueue(data.text, speechSender);
+      addToTakeQueue(currentRoom, data.text, speechSender);
       console.log('✅ 音声認識結果をキューに追加完了');
     }
     
-    // 音声認識結果受信の確認応答
     socket.emit('speech_result_received', {
       success: true,
-      mode: systemMode,
-      message: systemMode === 'realtime' ? '音声認識結果を表示しました' : '音声認識結果をキューに追加しました'
+      mode: currentRoom.systemMode,
+      message: currentRoom.systemMode === 'realtime' ? '音声認識結果を表示しました' : '音声認識結果をキューに追加しました'
     });
   });
   
@@ -1056,26 +1245,31 @@ io.on('connection', (socket) => {
   });
   // 切断処理
   socket.on('disconnect', () => {
-    const participant = participants.find(p => p.id === socket.id);
+    if (!currentRoom) {
+      console.log('ユーザーが切断しました:', socket.id);
+      return;
+    }
+    
+    const participant = currentRoom.participants.find(p => p.id === socket.id);
     if (participant) {
-      const wasCurrentSender = getCurrentSender()?.id === socket.id;
+      const wasCurrentSender = getCurrentSender(currentRoom)?.id === socket.id;
       
-      participants = participants.filter(p => p.id !== socket.id);
+      currentRoom.participants = currentRoom.participants.filter(p => p.id !== socket.id);
       console.log(`${participant.name} が退出しました (${socket.id})`);
       
       // 送信権を調整
-      adjustSenderIndex();
-      const newCurrentSender = getCurrentSender();
+      adjustSenderIndex(currentRoom);
+      const newCurrentSender = getCurrentSender(currentRoom);
       
       if (wasCurrentSender && newCurrentSender) {
-        console.log(`送信権が ${newCurrentSender.name} に移りました（退出により）`);
+        console.log(`送信権が ${newCurrentSender.name} に移りました(退出により)`);
       }
       
-      // 全員に更新された参加者一覧と送信権情報を送信
-      io.emit('participants_updated', {
-        participants: participants,
+      // ルーム内の全員に更新された参加者一覧と送信権情報を送信
+      io.to(currentRoomId).emit('participants_updated', {
+        participants: currentRoom.participants,
         currentSender: newCurrentSender,
-        senderIndex: currentSenderIndex
+        senderIndex: currentRoom.currentSenderIndex
       });
     } else {
       console.log('ユーザーが切断しました:', socket.id);

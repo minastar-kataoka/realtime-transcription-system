@@ -336,6 +336,15 @@
         let messageCount = 0;
         let userScrolled = false; // ユーザーが手動でスクロールしたかを追跡
         
+        // URLパラメータからroomIdを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        
+        if (!roomId) {
+            alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+            window.location.href = '/room-manager';
+        }
+        
         // Socket.io接続
         const socket = io();
         

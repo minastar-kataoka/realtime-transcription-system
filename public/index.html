@@ -702,6 +702,14 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // URLパラメータからroomIdを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        
+        if (!roomId) {
+            alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+            window.location.href = '/room-manager';
+        }
         const socket = io();
         const statusDiv = document.getElementById('status');
         const statusText = document.getElementById('statusText');
@@ -1621,7 +1629,10 @@
             joinBtn.disabled = true;
             joinBtn.textContent = '参加中...';
             
-            socket.emit('join', { name: name });
+            socket.emit('join', { 
+                name: name,
+                roomId: roomId 
+            });
         });
         
         // Enterキーでも参加できるようにする

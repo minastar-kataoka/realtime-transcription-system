@@ -1047,6 +1047,17 @@
             emergencyThreshold: 1000,
             returnMargin: 200
         };
+
+        // URLパラメータからroomIdを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        
+        if (!roomId) {
+            alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+            window.location.href = '/room-manager';
+        }
+        
+        console.log('管理画面 - ルームID:', roomId);
         
         // Socket.io接続
         const socket = io();
@@ -1057,7 +1068,7 @@
             console.log('Socket.io接続成功:', socket.id);
             
             // 管理画面として接続を通知
-            socket.emit('join_admin');
+            socket.emit('join_admin', { roomId: roomId });
         });
         
         socket.on('disconnect', () => {
