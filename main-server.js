@@ -417,8 +417,31 @@ app.get('/api/export/:type', (req, res) => {
 
 // ルームの作成API
 app.post('/api/rooms/create', (req, res) => {
-  const { projectName } = req.body;
-  const roomId = generateRoomId();
+  const { projectName, customRoomId } = req.body;
+  
+  // カスタムIDが指定されている場合はそれを使用、なければ自動生成
+  let roomId;
+  if (customRoomId && customRoomId.trim()) {
+    roomId = customRoomId.trim();
+    
+    // 既に存在するIDかチェック
+    if (rooms.has(roomId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'そのルームIDは既に使用されています'
+      });
+    }
+    
+    // 使用可能な文字のみかチェック（英数字、ハイフン、アンダースコア）
+    if (!/^[a-zA-Z0-9_-]+$/.test(roomId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'ルームIDは英数字、ハイフン、アンダースコアのみ使用できます'
+      });
+    }
+  } else {
+    roomId = generateRoomId();
+  }
   
   rooms.set(roomId, {
     id: roomId,
@@ -437,7 +460,7 @@ app.post('/api/rooms/create', (req, res) => {
     ? 'https://minart-bacec6fffc57.herokuapp.com'
     : `http://localhost:${PORT}`;
   
-  console.log(`新規ルーム作成: ${roomId} - ${projectName}`);
+  console.log(`新規ルーム作成: ${roomId} - ${projectName}${customRoomId ? ' (カスタムID)' : ''}`);
   
   res.json({
     success: true,

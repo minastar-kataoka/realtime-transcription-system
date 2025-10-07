@@ -263,7 +263,13 @@
                 <h3>新規ルーム作成</h3>
                 <div class="input-group">
                     <input type="text" id="projectName" placeholder="プロジェクト名を入力（例: 2025年1月15日 A社プレゼン）">
+                </div>
+                <div class="input-group" style="margin-top: 10px;">
+                    <input type="text" id="customRoomId" placeholder="ルームID（任意・空欄で自動生成） 例: meeting-room-0115" style="flex: 1;">
                     <button class="btn-primary" onclick="createRoom()">ルーム作成</button>
+                </div>
+                <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    ※ ルームIDは英数字、ハイフン、アンダースコアのみ使用可能（空欄の場合は自動生成）
                 </div>
             </div>
         </div>
@@ -290,9 +296,16 @@
     <script>
         async function createRoom() {
             const projectName = document.getElementById('projectName').value.trim();
+            const customRoomId = document.getElementById('customRoomId').value.trim();
             
             if (!projectName) {
                 alert('プロジェクト名を入力してください');
+                return;
+            }
+            
+            // カスタムIDのバリデーション（入力されている場合のみ）
+            if (customRoomId && !/^[a-zA-Z0-9_-]+$/.test(customRoomId)) {
+                alert('ルームIDは英数字、ハイフン、アンダースコアのみ使用できます\n例: meeting-room-0115');
                 return;
             }
             
@@ -300,7 +313,10 @@
                 const response = await fetch('/api/rooms/create', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projectName: projectName })
+                    body: JSON.stringify({ 
+                        projectName: projectName,
+                        customRoomId: customRoomId 
+                    })
                 });
                 
                 const data = await response.json();
@@ -308,9 +324,10 @@
                 if (data.success) {
                     showUrlModal(data);
                     document.getElementById('projectName').value = '';
+                    document.getElementById('customRoomId').value = '';
                     loadRooms();
                 } else {
-                    alert('ルーム作成に失敗しました');
+                    alert(data.error || 'ルーム作成に失敗しました');
                 }
             } catch (error) {
                 console.error('エラー:', error);
