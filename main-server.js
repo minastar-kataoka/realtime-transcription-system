@@ -22,6 +22,31 @@ const io = socketIo(server, {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json()); // JSON解析用ミドルウェア
 
+// Basic認証ミドルウェア
+function basicAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Room Manager"');
+    return res.status(401).send('認証が必要です');
+  }
+  
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+  const [username, password] = credentials.split(':');
+  
+  // 認証情報（環境変数または固定値）
+  const validUsername = process.env.ADMIN_USERNAME || 'admin';
+  const validPassword = process.env.ADMIN_PASSWORD || 'minart2025';
+  
+  if (username === validUsername && password === validPassword) {
+    next();
+  } else {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Room Manager"');
+    return res.status(401).send('認証に失敗しました');
+  }
+}
+
 // メインページ
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -48,7 +73,7 @@ app.get('/translation-test', (req, res) => {
 });
 
 // ルーム管理画面(新規追加)
-app.get('/room-manager', (req, res) => {
+app.get('/room-manager', basicAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'room-manager.html'));
 });
 
@@ -416,7 +441,7 @@ app.get('/api/export/:type', (req, res) => {
 });
 
 // ルームの作成API
-app.post('/api/rooms/create', (req, res) => {
+app.post('/api/rooms/create', basicAuth, (req, res) => {
   const { projectName, customRoomId } = req.body;
   
   // カスタムIDが指定されている場合はそれを使用、なければ自動生成
@@ -476,7 +501,7 @@ app.post('/api/rooms/create', (req, res) => {
 });
 
 // ルーム一覧取得API
-app.get('/api/rooms/list', (req, res) => {
+app.get('/api/rooms/list', basicAuth, (req, res) => {
   const roomList = Array.from(rooms.entries()).map(([id, room]) => ({
     id: id,
     projectName: room.projectName,
@@ -493,7 +518,7 @@ app.get('/api/rooms/list', (req, res) => {
 });
 
 // ルーム削除API
-app.delete('/api/rooms/:roomId', (req, res) => {
+app.delete('/api/rooms/:roomId', basicAuth, (req, res) => {
   const roomId = req.params.roomId;
   
   if (rooms.has(roomId)) {
@@ -506,7 +531,7 @@ app.delete('/api/rooms/:roomId', (req, res) => {
 });
 
 // ルーム情報取得API
-app.get('/api/rooms/:roomId', (req, res) => {
+app.get('/api/rooms/:roomId', basicAuth, (req, res) => {
   const roomId = req.params.roomId;
   
   if (rooms.has(roomId)) {
