@@ -552,28 +552,16 @@ app.get('/api/rooms/:roomId', basicAuth, (req, res) => {
   }
 });
 
-// ログ統計情報取得 (修正版)
+// ログ統計情報取得
 app.get('/api/log-stats', (req, res) => {
-  const roomId = req.query.room;
-  
-  if (!roomId || !rooms.has(roomId)) {
-    return res.status(400).json({ 
-      success: false,
-      error: '無効なルームIDです' 
-    });
-  }
-  
-  const room = rooms.get(roomId);
-  
   const stats = {
-    success: true,
-    totalMessages: room.sessionLog.length,
-    sessionStartTime: room.sessionStartTime,
+    totalMessages: sessionLog.length,
+    sessionStartTime: sessionStartTime,
     currentTime: new Date(),
-    sessionDuration: Date.now() - room.sessionStartTime.getTime(),
-    participants: room.participants.map(p => ({
+    sessionDuration: Date.now() - sessionStartTime.getTime(),
+    participants: participants.map(p => ({
       name: p.name,
-      messageCount: room.sessionLog.filter(log => log.sender === p.name).length
+      messageCount: sessionLog.filter(log => log.sender === p.name).length
     }))
   };
   
@@ -582,7 +570,7 @@ app.get('/api/log-stats', (req, res) => {
 
 // ログクリア
 app.post('/api/clear-log', (req, res) => {
-  const roomId = req.body.roomId;  // ボディから取得
+  const roomId = req.body.roomId || req.query.room;
   
   if (!roomId || !rooms.has(roomId)) {
     return res.status(400).json({ error: '無効なルームIDです' });
@@ -1136,11 +1124,10 @@ io.on('connection', (socket) => {
       
       // ログに追加
       addMessageToLog(currentRoom, data.text, currentSender.name);
-      console.log(`✅ ログ追加完了。現在のログ件数: ${currentRoom.sessionLog.length}件`);
       
       // ルーム内の全員にメッセージを送信(表示画面含む)
       io.to(currentRoomId).emit('text_received', message);
-      console.log(`✅ text_receivedイベント送信: ルーム=${currentRoomId}, メッセージ="${data.text}"`);
+      console.log('リアルタイム送信: text_receivedイベントを送信しました');
       
     } else if (currentRoom.systemMode === 'take') {
       // テイクモード: キューに蓄積
