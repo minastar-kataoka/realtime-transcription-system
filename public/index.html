@@ -810,6 +810,11 @@
                 // ✅ この行を追加: 参加時にログ統計を取得
                 updateLogStats();
                 
+                // 参加完了後、文字数ガイドの背景を更新
+                setTimeout(() => {
+                    updateCharGuideBackground();
+                }, 100);
+                
                 console.log('参加完了:', data.participant);
             }
         });
@@ -1052,12 +1057,34 @@
                 return;
             }
             
-            // DOM要素が完全に描画されるまで待機
-            if (textarea.clientWidth === 0) {
-                console.log('テキストエリア未描画のため再試行');
-                setTimeout(updateCharGuideBackground, 50);
+            // テキストエリアが非表示の場合はスキップ（参加前など）
+            if (textarea.offsetParent === null) {
+                console.log('テキストエリアが非表示のため処理をスキップ');
                 return;
             }
+            
+            // DOM要素が完全に描画されるまで待機（最大10回まで）
+            if (textarea.clientWidth === 0) {
+                // 再試行カウンターを追加
+                if (!textarea.dataset.retryCount) {
+                    textarea.dataset.retryCount = '0';
+                }
+                const retryCount = parseInt(textarea.dataset.retryCount);
+                
+                if (retryCount < 10) {
+                    textarea.dataset.retryCount = String(retryCount + 1);
+                    console.log(`テキストエリア未描画のため再試行 (${retryCount + 1}/10)`);
+                    setTimeout(updateCharGuideBackground, 50);
+                    return;
+                } else {
+                    console.warn('テキストエリアの描画待機がタイムアウトしました');
+                    textarea.dataset.retryCount = '0';
+                    return;
+                }
+            }
+            
+            // 描画成功したらカウンターをリセット
+            textarea.dataset.retryCount = '0';
             
             // より正確な文字幅計算
             const style = window.getComputedStyle(textarea);
