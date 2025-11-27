@@ -150,47 +150,6 @@
             flex-shrink: 0;
         }
         
-        /* 全画面表示モード */
-        .fullscreen-mode .header,
-        .fullscreen-mode .footer {
-            display: none;
-        }
-        
-        .fullscreen-mode .main-content {
-            padding: 0;
-        }
-        
-        .fullscreen-mode .text-display-area {
-            border: none;
-            border-radius: 0;
-            padding: 40px;
-            height: 100vh !important;
-        }
-        
-        /* 全画面表示インジケーター */
-        .fullscreen-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: rgba(0, 123, 255, 0.9);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-size: 14px;
-            z-index: 3000;
-            display: none;
-            animation: fadeInOut 2s ease-in-out;
-        }
-        
-        .fullscreen-indicator.show {
-            display: block;
-        }
-        
-        @keyframes fadeInOut {
-            0%, 100% { opacity: 0; }
-            10%, 90% { opacity: 1; }
-        }
-        
         /* デバッグ用 */
         .debug-info {
             position: fixed;
@@ -477,15 +436,10 @@
     </style>
 </head>
 <body>
-    <!-- 全画面表示インジケーター -->
-    <div id="fullscreenIndicator" class="fullscreen-indicator">
-        全画面モード (F11で終了)
-    </div>
-    
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2024-11-27 22:30 JST</span>
+            <span class="version-info">最終更新: 2024-11-27 21:30 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -501,7 +455,10 @@
     
     <div class="main-content">
         <div class="text-display-area" id="textDisplayArea">
-            <div class="text-lines" id="textLines"></div>
+            <div class="waiting-message" id="waitingMessage">
+                メッセージの受信を待っています...
+            </div>
+            <div class="text-lines" id="textLines" style="display: none;"></div>
         </div>
     </div>
     
@@ -606,18 +563,6 @@
                         <input type="text" class="setting-input" id="bgColorInput" value="#000000" style="width: 100px;">
                     </div>
                 </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">全画面表示</label>
-                    <div class="setting-row">
-                        <button id="toggleFullscreenBtn" class="btn btn-primary" style="flex: 1;">
-                            全画面モード切り替え (F11)
-                        </button>
-                    </div>
-                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
-                        ※ ヘッダーとフッターを非表示にして、文字表示エリアのみを全画面表示します
-                    </div>
-                </div>
             </div>
             
             <!-- スクロール設定タブ -->
@@ -657,19 +602,6 @@
             <!-- 設定管理タブ -->
             <div class="tab-content" id="configTab">
                 <div class="setting-group">
-                    <label class="setting-label">デバッグ情報</label>
-                    <div class="setting-row">
-                        <div class="checkbox-wrapper">
-                            <input type="checkbox" class="setting-checkbox" id="showDebugInfoCheck">
-                            <label for="showDebugInfoCheck">画面右上にデバッグ情報を表示</label>
-                        </div>
-                    </div>
-                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
-                        ※ 行データ数、表示行数、スクロール状態などの情報を表示します
-                    </div>
-                </div>
-                
-                <div class="setting-group">
                     <label class="setting-label">設定ファイル</label>
                     <div class="setting-row">
                         <label for="configFile" class="file-label">📁 設定を読み込み</label>
@@ -693,6 +625,7 @@
         const statusIndicator = document.getElementById('statusIndicator');
         const connectionText = document.getElementById('connectionText');
         const textDisplayArea = document.getElementById('textDisplayArea');
+        const waitingMessage = document.getElementById('waitingMessage');
         const textLines = document.getElementById('textLines');
         const currentTime = document.getElementById('currentTime');
         const operatorUrl = document.getElementById('operatorUrl');
@@ -722,8 +655,7 @@
             maxCharsPerLine: 30,
             maxVisibleLines: 10,
             animationDuration: 0.8,
-            fullWidthMode: false,
-            showDebugInfo: false
+            fullWidthMode: false
         };
         
         // デフォルト設定
@@ -775,11 +707,8 @@
             document.getElementById('charsPerLineSlider').value = settings.maxCharsPerLine;
             document.getElementById('charsPerLineInput').value = settings.maxCharsPerLine;
             
-            // 全角変換設定
-            document.getElementById('fullWidthCheck').checked = settings.fullWidthMode;
-            
-            // デバッグ情報表示設定
-            document.getElementById('showDebugInfoCheck').checked = settings.showDebugInfo;
+                // 全角変換設定
+                document.getElementById('fullWidthCheck').checked = settings.fullWidthMode;
         }
         
         // フォントファミリーのマッピング
@@ -818,9 +747,6 @@
             // スクロールアニメーションの時間も更新
             textLines.style.transition = `transform ${settings.animationDuration}s ease-out`;
             
-            // デバッグ情報の表示/非表示
-            debugInfo.style.display = settings.showDebugInfo ? 'block' : 'none';
-            
             console.log('表示スタイルを更新:', {
                 fontSize: settings.fontSize,
                 lineHeight: settings.lineHeight,
@@ -829,8 +755,7 @@
                 fontColor: settings.fontColor,
                 backgroundColor: settings.backgroundColor,
                 maxVisibleLines: settings.maxVisibleLines,
-                animationDuration: settings.animationDuration,
-                showDebugInfo: settings.showDebugInfo
+                animationDuration: settings.animationDuration
             });
         }
         
@@ -935,13 +860,6 @@
                 }
             });
             
-            // デバッグ情報表示の切り替え
-            document.getElementById('showDebugInfoCheck').addEventListener('change', (e) => {
-                settings.showDebugInfo = e.target.checked;
-                debugInfo.style.display = settings.showDebugInfo ? 'block' : 'none';
-                saveSettings();
-            });
-            
             // 設定ファイルの読み込み
             document.getElementById('configFile').addEventListener('change', (e) => {
                 const file = e.target.files[0];
@@ -1006,13 +924,6 @@
             if (e.target === settingsModal) {
                 settingsModal.style.display = 'none';
             }
-        });
-        
-        // 全画面表示ボタン
-        const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
-        toggleFullscreenBtn.addEventListener('click', () => {
-            toggleFullscreenMode();
-            settingsModal.style.display = 'none';
         });
         
         // 現在時刻の表示更新
@@ -1342,6 +1253,15 @@
         
         // 表示を更新
         function updateDisplay() {
+            if (textLineArray.length === 0) {
+                waitingMessage.style.display = 'block';
+                textLines.style.display = 'none';
+                return;
+            }
+            
+            waitingMessage.style.display = 'none';
+            textLines.style.display = 'block';
+            
             // 最新の指定行数を取得
             const visibleLines = textLineArray.slice(-settings.maxVisibleLines);
             
@@ -1525,64 +1445,6 @@
                 addText(message.text);
             });
         }
-        
-        // 全画面表示モードの管理
-        let isFullscreenMode = false;
-        const fullscreenIndicator = document.getElementById('fullscreenIndicator');
-        
-        async function toggleFullscreenMode() {
-            try {
-                if (!document.fullscreenElement) {
-                    // 全画面モードに入る
-                    await document.documentElement.requestFullscreen();
-                    isFullscreenMode = true;
-                    document.body.classList.add('fullscreen-mode');
-                    showFullscreenIndicator('全画面モード ON (F11またはESCで終了)');
-                    console.log('全画面モード: ON');
-                } else {
-                    // 全画面モードを終了
-                    await document.exitFullscreen();
-                    isFullscreenMode = false;
-                    document.body.classList.remove('fullscreen-mode');
-                    showFullscreenIndicator('全画面モード OFF');
-                    console.log('全画面モード: OFF');
-                }
-                
-                // 表示を更新
-                updateDisplay();
-            } catch (error) {
-                console.error('全画面表示の切り替えに失敗:', error);
-                alert('全画面表示に失敗しました。ブラウザが全画面表示をサポートしていない可能性があります。');
-            }
-        }
-        
-        // 全画面モードの変更を監視
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement && isFullscreenMode) {
-                // ユーザーがESCキーなどで全画面を終了した場合
-                isFullscreenMode = false;
-                document.body.classList.remove('fullscreen-mode');
-                console.log('全画面モード: OFF (ユーザー操作)');
-            }
-        });
-        
-        function showFullscreenIndicator(message) {
-            fullscreenIndicator.textContent = message;
-            fullscreenIndicator.classList.add('show');
-            
-            setTimeout(() => {
-                fullscreenIndicator.classList.remove('show');
-            }, 2000);
-        }
-        
-        // キーボードショートカット
-        document.addEventListener('keydown', (event) => {
-            // F11キーで全画面表示切り替え
-            if (event.key === 'F11') {
-                event.preventDefault();
-                toggleFullscreenMode();
-            }
-        });
         
         // アプリケーション開始
         initialize();
