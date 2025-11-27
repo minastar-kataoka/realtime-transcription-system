@@ -541,51 +541,6 @@
             margin-bottom: 20px;
         }
         
-        /* 設定ボタン */
-        .settings-toggle-btn {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-bottom: 15px;
-            transition: background-color 0.3s;
-        }
-        
-        .settings-toggle-btn:hover {
-            background-color: #0056b3;
-        }
-        
-        .settings-toggle-btn.active {
-            background-color: #28a745;
-        }
-        
-        /* 設定エリア */
-        .settings-area {
-            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
-            overflow: hidden;
-        }
-        
-        .settings-area.hidden {
-            max-height: 0;
-            opacity: 0;
-        }
-        
-        .settings-area.visible {
-            max-height: 2000px;
-            opacity: 1;
-        }
-        
-        .char-guide-panel,
-        .log-panel {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        
         .participants-list {
             margin-top: 15px;
         }
@@ -692,14 +647,8 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- 設定ボタン -->
-            <button id="settingsToggleBtn" class="settings-toggle-btn">⚙️ 設定</button>
-            
-            <!-- 設定エリア -->
-            <div id="settingsArea" class="settings-area hidden">
-                <!-- 文字数ガイド表示設定 -->
-                <div class="char-guide-panel">
+            <!-- 文字数ガイド表示設定 -->
+            <div class="char-guide-panel">
                 <h3>🎯 文字数ガイド設定</h3>
                 <div class="char-guide-controls">
                     <label class="char-guide-checkbox">
@@ -724,8 +673,6 @@
                     <span id="logStats" class="log-stats">ログ: 0件</span>
                 </div>
             </div>
-            </div>
-            <!-- 設定エリア終了 -->
             
             <div class="participants-panel">
                 <h3>参加者一覧 (<span id="participantCount">0</span>名)</h3>
@@ -820,37 +767,6 @@
             enabled: false,
             charLimit: 20.0
         };
-        
-        // 設定エリアの表示/非表示
-        const settingsToggleBtn = document.getElementById('settingsToggleBtn');
-        const settingsArea = document.getElementById('settingsArea');
-        let settingsVisible = false;
-        
-        // LocalStorageから設定の表示状態を読み込み
-        const savedSettingsVisibility = localStorage.getItem('settingsVisible');
-        if (savedSettingsVisibility === 'true') {
-            settingsVisible = true;
-            settingsArea.classList.remove('hidden');
-            settingsArea.classList.add('visible');
-            settingsToggleBtn.classList.add('active');
-        }
-        
-        settingsToggleBtn.addEventListener('click', () => {
-            settingsVisible = !settingsVisible;
-            
-            if (settingsVisible) {
-                settingsArea.classList.remove('hidden');
-                settingsArea.classList.add('visible');
-                settingsToggleBtn.classList.add('active');
-            } else {
-                settingsArea.classList.remove('visible');
-                settingsArea.classList.add('hidden');
-                settingsToggleBtn.classList.remove('active');
-            }
-            
-            // LocalStorageに保存
-            localStorage.setItem('settingsVisible', settingsVisible);
-        });
         
         // Socket.io接続イベント
         socket.on('connect', () => {
