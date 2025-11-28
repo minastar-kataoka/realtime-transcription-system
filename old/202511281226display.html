@@ -125,12 +125,6 @@
             word-wrap: break-word;
             white-space: pre-wrap;
             transition: transform 0.8s ease-out;
-            /* アニメーション最適化 */
-            will-change: transform;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
         }
         
         .text-line {
@@ -491,7 +485,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2024-11-28 00:30 JST</span>
+            <span class="version-info">最終更新: 2024-11-28 00:00 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -1310,8 +1304,8 @@
         // テキストをセグメントに分割
         function tokenizeText(text) {
             const segments = [];
-            // 半角・全角の英数字を単語として認識
-            const regex = /([0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]|[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+(?:\.[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+)*|[^ \u3000]+|[ ]+|[\u3000]+)/g;
+            // [\s\u3000]+ を [ \u3000]+ に変更（半角スペースと全角スペースを明示的に分離）
+            const regex = /([0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]|[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*|[^ \u3000]+|[ ]+|[\u3000]+)/g;
             let match;
             
             while ((match = regex.exec(text)) !== null) {
@@ -1319,8 +1313,7 @@
                 
                 if (/^[0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]$/.test(segment)) {
                     segments.push({ type: 'unit', text: segment });
-                } else if (/^[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+(?:\.[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+)*$/.test(segment)) {
-                    // 半角・全角の英数字を単語として扱う
+                } else if (/^[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*$/.test(segment)) {
                     segments.push({ type: 'word', text: segment });
                 } else if (/^ +$/.test(segment)) {
                     // 半角スペースのみ
@@ -1417,7 +1410,7 @@
             console.log(`表示更新: 全${textLineArray.length}行中、最新${visibleLines.length}行を表示`);
         }
         
-        // スクロールアニメーション実行（改良版）
+        // スクロールアニメーション実行
         function performScrollAnimation() {
             if (isAnimating || textLineArray.length <= settings.maxVisibleLines) {
                 updateDisplay();
@@ -1428,46 +1421,36 @@
             isAnimating = true;
             updateDebugInfo();
             
-            // 1. 新しい行を含めて表示（まだ見えない位置に配置）
-            const visibleLines = textLineArray.slice(-settings.maxVisibleLines);
+            // 現在の行の高さを動的に計算
+            const lineHeight = settings.fontSize * settings.lineHeight;
+            console.log(`計算された行の高さ: ${lineHeight}px (フォントサイズ: ${settings.fontSize}px × 行間隔: ${settings.lineHeight})`);
             
-            // 新しい行を追加して全体を表示
-            const htmlWithNew = visibleLines.map(line => 
+            // 現在表示されている行を取得
+            const currentVisibleLines = textLineArray.slice(-(settings.maxVisibleLines + 1), -1);
+            
+            // 現在の行を表示
+            textLines.innerHTML = currentVisibleLines.map(line => 
                 `<div class="text-line">${line || '&nbsp;'}</div>`
             ).join('');
             
-            // アニメーション無しで内容を更新
-            textLines.style.transition = 'none';
-            textLines.innerHTML = htmlWithNew;
-            
-            // 2. CSSアニメーションのキーフレームを動的に設定
-            // まず、一番上の行の高さを取得
-            const firstLine = textLines.querySelector('.text-line');
-            const lineHeight = firstLine ? firstLine.offsetHeight : (settings.fontSize * settings.lineHeight);
-            
-            console.log(`計算された行の高さ: ${lineHeight}px`);
-            
-            // 3. 初期位置を1行分下に設定（新しい行が画面外に）
-            textLines.style.transform = `translateY(${lineHeight}px)`;
-            
-            // 4. 次のフレームでアニメーション開始
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    textLines.style.transition = `transform ${settings.animationDuration}s ease-out`;
-                    textLines.style.transform = 'translateY(0)';
-                    
-                    console.log(`スクロール実行: ${lineHeight}px上に移動`);
-                });
-            });
-            
-            // 5. アニメーション完了後にクリーンアップ
+            // コンテナ全体を1行分上に移動
             setTimeout(() => {
-                textLines.style.transition = 'none';
-                textLines.style.transform = 'translateY(0)';
-                isAnimating = false;
-                updateDebugInfo();
-                console.log('スクロールアニメーション完了');
-            }, settings.animationDuration * 1000);
+                textLines.style.transition = `transform ${settings.animationDuration}s ease-out`;
+                
+                // 動的に計算された行の高さを使用
+                textLines.style.transform = `translateY(-${lineHeight}px)`;
+                console.log(`スクロール実行: translateY(-${lineHeight}px)`);
+                
+                // スクロール完了後、正常状態に復元
+                setTimeout(() => {
+                    textLines.style.transition = 'none';
+                    textLines.style.transform = 'translateY(0)';
+                    updateDisplay();
+                    isAnimating = false;
+                    updateDebugInfo();
+                    console.log('スクロールアニメーション完了');
+                }, settings.animationDuration * 1000);
+            }, 16);
         }
         
         // テキスト追加
