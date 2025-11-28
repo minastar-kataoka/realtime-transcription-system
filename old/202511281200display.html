@@ -485,7 +485,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2024-11-28 00:00 JST</span>
+            <span class="version-info">最終更新: 2025-11-27 16:28 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -1248,48 +1248,27 @@
             for (const segment of segments) {
                 const segmentWidth = calculateTextWidth(segment.text);
                 
-                // 英数字の単語の場合は単語単位で改行を判断
-                if (segment.type === 'word' || segment.type === 'unit') {
-                    if (currentWidth + segmentWidth <= maxWidth) {
-                        // 現在の行に収まる場合は追加
-                        currentLine += segment.text;
-                        currentWidth += segmentWidth;
-                    } else {
-                        // 現在の行に収まらない場合
-                        if (currentLine.trim()) {
-                            resultLines.push(currentLine.trim());
-                        }
-                        
-                        // セグメントが1行の幅を超える場合は文字単位で分割
-                        if (segmentWidth > maxWidth) {
-                            const forceBrokenLines = forceBreakLongSegment(segment.text, maxWidth);
-                            resultLines.push(...forceBrokenLines.slice(0, -1));
-                            
-                            const lastLine = forceBrokenLines[forceBrokenLines.length - 1];
-                            currentLine = lastLine;
-                            currentWidth = calculateTextWidth(lastLine);
-                        } else {
-                            // セグメント全体を次の行に
-                            currentLine = segment.text;
-                            currentWidth = segmentWidth;
-                        }
-                    }
+                // 現在の行に追加できるかチェック
+                if (currentWidth + segmentWidth <= maxWidth) {
+                    currentLine += segment.text;
+                    currentWidth += segmentWidth;
                 } else {
-                    // 日本語やスペースの場合は文字単位で自由に折り返す
-                    for (const char of segment.text) {
-                        const charWidth = isFullWidth(char) ? 2 : 1;
+                    // 現在の行に収まらない場合
+                    if (currentLine.trim()) {
+                        resultLines.push(currentLine.trim());
+                    }
+                    
+                    // セグメントが1行の幅を超える場合は文字単位で分割
+                    if (segmentWidth > maxWidth) {
+                        const forceBrokenLines = forceBreakLongSegment(segment.text, maxWidth);
+                        resultLines.push(...forceBrokenLines.slice(0, -1));
                         
-                        if (currentWidth + charWidth <= maxWidth) {
-                            currentLine += char;
-                            currentWidth += charWidth;
-                        } else {
-                            // 行が満杯になったら改行
-                            if (currentLine.trim()) {
-                                resultLines.push(currentLine.trim());
-                            }
-                            currentLine = char;
-                            currentWidth = charWidth;
-                        }
+                        const lastLine = forceBrokenLines[forceBrokenLines.length - 1];
+                        currentLine = lastLine;
+                        currentWidth = calculateTextWidth(lastLine);
+                    } else {
+                        currentLine = segment.text;
+                        currentWidth = segmentWidth;
                     }
                 }
             }
@@ -1455,10 +1434,7 @@
         
         // テキスト追加
         function addText(text) {
-            console.log('=== テキスト追加開始 ===');
-            console.log('受信テキスト:', JSON.stringify(text));
-            console.log('設定 - removeLineBreaks:', settings.removeLineBreaks);
-            console.log('設定 - forceLineBreakChar:', JSON.stringify(settings.forceLineBreakChar));
+            console.log('テキスト追加:', text);
             
             let processedText = text;
             
@@ -1466,14 +1442,14 @@
             if (settings.removeLineBreaks) {
                 // すべての改行を削除
                 processedText = processedText.replace(/\r?\n/g, '');
-                console.log('改行削除後:', JSON.stringify(processedText));
+                console.log('改行削除後:', processedText);
             }
             
             // 強制改行文字を改行に変換
             if (settings.forceLineBreakChar && settings.forceLineBreakChar.length > 0) {
                 const regex = new RegExp(settings.forceLineBreakChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
                 processedText = processedText.replace(regex, '\n');
-                console.log('強制改行文字変換後:', JSON.stringify(processedText));
+                console.log('強制改行文字変換後:', processedText);
             }
             
             // 既存テキストと結合
@@ -1484,8 +1460,6 @@
                 fullText = processedText;
             }
             
-            console.log('結合後fullText:', JSON.stringify(fullText.substring(0, 100)));
-            
             // 音声認識由来の不適切なスペースを除去
             fullText = cleanupSpeechText(fullText);
             
@@ -1494,16 +1468,12 @@
                 fullText = convertToFullWidth(fullText);
             }
             
-            console.log('最終処理後fullText:', JSON.stringify(fullText.substring(0, 100)));
-            
             // 行に分割
             const newLines = splitTextIntoLines(fullText);
             const previousLineCount = textLineArray.length;
             textLineArray = newLines;
             
             console.log(`行数変化: ${previousLineCount} → ${textLineArray.length}`);
-            console.log('分割後の行:', textLineArray.slice(0, 5));
-            console.log('=== テキスト追加終了 ===');
             
             // 初回メッセージの場合
             if (!hasMessages) {
