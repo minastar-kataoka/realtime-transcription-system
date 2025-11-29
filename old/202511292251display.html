@@ -28,10 +28,31 @@
             flex-shrink: 0;
         }
         
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .version-info {
+            font-size: 12px;
+            font-weight: normal;
+            color: #888;
+            background-color: #2a2a2a;
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+        
         .status-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-top: 10px;
             font-size: 14px;
             color: #ccc;
         }
@@ -482,6 +503,10 @@
     </div>
     
     <div class="header">
+        <div class="title">
+            <span>リアルタイム文字起こし</span>
+            <span class="version-info">最終更新: 2024-11-28 03:45 JST</span>
+        </div>
         <div class="status-bar">
             <div class="connection-status">
                 <div id="statusIndicator" class="status-indicator"></div>
@@ -502,7 +527,7 @@
     </div>
     
     <div class="footer">
-        最終更新: 2024-11-28 03:45 JST
+        プロジェクター表示用画面 - オペレーター画面: <span id="operatorUrl"></span>
     </div>
 
     <!-- デバッグ情報 -->
@@ -730,6 +755,7 @@
         const textLines = document.getElementById('textLines');
         const topMask = document.getElementById('topMask');
         const currentTime = document.getElementById('currentTime');
+        const operatorUrl = document.getElementById('operatorUrl');
         const debugInfo = document.getElementById('debugInfo');
         
         // 設定パネル要素
@@ -1205,6 +1231,9 @@
         
         updateCurrentTime();
         setInterval(updateCurrentTime, 1000);
+        
+        // オペレーター画面のURLを表示
+        operatorUrl.textContent = window.location.origin + '/';
         
         // デバッグ情報更新
         function updateDebugInfo() {
