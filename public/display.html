@@ -500,7 +500,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2025-11-29 13:37 JST</span>
+            <span class="version-info">最終更新: 2024-11-28 03:15 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -1465,9 +1465,13 @@
         // 連続スクロールアニメーション（スターウォーズ風）
         let scrollQueue = [];
         let isProcessingQueue = false;
+        let displayedLineCount = 0; // 現在表示されている行数
         
         function performContinuousScrollAnimation(lineCount) {
             console.log(`${lineCount}行の連続スクロールを開始`);
+            
+            // 現在の表示行数を記録
+            displayedLineCount = textLineArray.length - lineCount;
             
             // 追加された行数をキューに追加
             for (let i = 0; i < lineCount; i++) {
@@ -1483,12 +1487,14 @@
         function processScrollQueue() {
             if (scrollQueue.length === 0) {
                 isProcessingQueue = false;
+                displayedLineCount = textLineArray.length; // 最終的に全行表示
                 console.log('連続スクロール完了');
                 return;
             }
             
             isProcessingQueue = true;
             scrollQueue.shift(); // 1つ処理
+            displayedLineCount++; // 表示行数を1つ増やす
             
             // 1行分のスクロールアニメーションを実行
             performSingleLineScroll(() => {
@@ -1498,10 +1504,11 @@
         }
         
         function performSingleLineScroll(callback) {
-            console.log('1行スクロールアニメーション開始');
+            console.log(`1行スクロールアニメーション開始（表示: ${displayedLineCount}行/${textLineArray.length}行）`);
             
-            // 全ての行を表示
-            const html = textLineArray.map(line => 
+            // 現在表示すべき行数までを表示
+            const linesToShow = textLineArray.slice(0, displayedLineCount);
+            const html = linesToShow.map(line => 
                 `<div class="text-line">${line || '&nbsp;'}</div>`
             ).join('');
             
@@ -1646,6 +1653,7 @@
             // 初回メッセージの場合
             if (!hasMessages) {
                 hasMessages = true;
+                displayedLineCount = textLineArray.length; // 初期化
                 updateDisplay();
                 updateDebugInfo();
                 return;
