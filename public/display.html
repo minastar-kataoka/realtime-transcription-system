@@ -491,7 +491,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2024-11-28 01:30 JST</span>
+            <span class="version-info">最終更新: 2024-11-28 01:45 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -1613,20 +1613,18 @@
                 return;
             }
             
+            // 実際に増えた行数
+            const actualAddedLines = textLineArray.length - previousLineCount;
+            
             // 実際に画面に表示される行数の増加分を計算
             const previousVisibleCount = Math.min(previousLineCount, settings.maxVisibleLines);
             const currentVisibleCount = Math.min(textLineArray.length, settings.maxVisibleLines);
             const visibleAddedLines = currentVisibleCount - previousVisibleCount;
             
-            console.log(`表示行数変化: ${previousVisibleCount} → ${currentVisibleCount} (${visibleAddedLines}行追加)`);
+            console.log(`表示行数変化: ${previousVisibleCount} → ${currentVisibleCount} (表示増加: ${visibleAddedLines}行, 実際増加: ${actualAddedLines}行)`);
             
-            if (visibleAddedLines > 0) {
-                // 実際に表示に追加される行数分、連続してスクロール
-                performContinuousScrollAnimation(visibleAddedLines);
-            } else if (textLineArray.length > previousLineCount) {
-                // 行は増えたが表示行数は変わらない（最大表示行数に達している）
-                // この場合は増えた行数分スクロール
-                const actualAddedLines = textLineArray.length - previousLineCount;
+            if (actualAddedLines > 0) {
+                // 行が増えた場合は、実際に増えた行数分スクロール
                 performContinuousScrollAnimation(actualAddedLines);
             } else {
                 updateDisplay();
