@@ -168,17 +168,17 @@
             border-bottom: 1px solid #dee2e6;
         }
         
-        /* 送信者別の背景色 */
+        /* 送信者別の背景色 - 入力画面と重複しない強めの色 */
         .message-item[data-sender="prev"] {
-            background-color: #e3f2fd;  /* 水色 - 前の順番 */
+            background-color: #ffccbc;  /* オレンジ系 - 1番目の参加者 */
         }
         
         .message-item[data-sender="current"] {
-            background-color: #e8f5e8;  /* 緑 - 自分 */
+            background-color: #e1bee7;  /* 紫系 - 2番目の参加者 */
         }
         
         .message-item[data-sender="next"] {
-            background-color: #fff8e1;  /* 黄色 - 次の順番 */
+            background-color: #c5e1a5;  /* ライムグリーン系 - 3番目の参加者 */
         }
         
         .message-item:hover {
@@ -294,12 +294,6 @@
             <button id="exportTimecodeBtn" class="btn btn-primary">⏰ ログ出力(tc付き)</button>
             <button id="refreshBtn" class="btn btn-secondary">🔄 更新</button>
             <button id="clearLogBtn" class="btn btn-danger">🗑️ ログクリア</button>
-            <div class="timestamp-toggle">
-                <span>タイムスタンプ表示</span>
-                <div class="toggle-switch active" id="timestampToggle">
-                    <div class="toggle-slider"></div>
-                </div>
-            </div>
         </div>
     </div>
     
@@ -327,7 +321,6 @@
         const noMessages = document.getElementById('noMessages');
         const messagesContainer = document.getElementById('messagesContainer');
         const autoScrollBtn = document.getElementById('autoScrollBtn');
-        const timestampToggle = document.getElementById('timestampToggle');
         
         // ボタン要素
         const exportTextBtn = document.getElementById('exportTextBtn');
@@ -337,7 +330,6 @@
         
         // 状態管理
         let messages = [];
-        let showTimestamp = true;
         let autoScroll = true; // デフォルトで自動スクロールON
         let messageCount = 0;
         let userScrolled = false; // ユーザーが手動でスクロールしたかを追跡
@@ -551,20 +543,6 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
         
-        // タイムスタンプ表示切り替え
-        function toggleTimestamp() {
-            showTimestamp = !showTimestamp;
-            timestampToggle.classList.toggle('active', showTimestamp);
-            
-            // 既存のタイムスタンプ表示を切り替え
-            const timestamps = document.querySelectorAll('.message-timestamp');
-            timestamps.forEach(timestamp => {
-                timestamp.classList.toggle('hidden', !showTimestamp);
-            });
-            
-            console.log('タイムスタンプ表示:', showTimestamp ? 'ON' : 'OFF');
-        }
-        
         // CSVエクスポート
         async function exportCSV(type) {
             if (messageCount === 0) {
@@ -572,8 +550,13 @@
                 return;
             }
             
+            if (!roomId) {
+                alert('ルームIDが取得できません');
+                return;
+            }
+            
             try {
-                const url = `/api/export/${type}`;
+                const url = `/api/export/${type}?roomId=${roomId}`;
                 const response = await fetch(url);
                 
                 if (!response.ok) {
@@ -620,12 +603,20 @@
                 return;
             }
             
+            if (!roomId) {
+                alert('ルームIDが取得できません');
+                return;
+            }
+            
             try {
                 const response = await fetch('/api/clear-log', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({
+                        roomId: roomId
+                    })
                 });
                 
                 if (response.ok) {
@@ -657,8 +648,6 @@
         });
         
         // イベントリスナー設定
-        timestampToggle.addEventListener('click', toggleTimestamp);
-        
         exportTextBtn.addEventListener('click', () => exportCSV('text-only'));
         exportTimecodeBtn.addEventListener('click', () => exportCSV('with-timecode'));
         
