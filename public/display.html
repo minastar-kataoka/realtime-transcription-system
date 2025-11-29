@@ -226,25 +226,22 @@
         .settings-modal {
             position: fixed;
             top: 0;
-            left: 0;
-            width: 100%;
+            right: 0;
+            width: 500px;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
             display: none;
-            justify-content: center;
-            align-items: center;
             z-index: 2000;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
         }
         
         .settings-panel {
-            background-color: #1a1a1a;
-            border-radius: 10px;
+            background-color: transparent;
             padding: 30px;
-            width: 600px;
-            max-width: 90vw;
-            max-height: 90vh;
-            overflow-y: auto;
-            border: 2px solid #333;
+            width: 100%;
+            height: 100%;
         }
         
         .settings-header {
@@ -503,7 +500,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2025-11-29 13:12 JST mask</span>
+            <span class="version-info">最終更新: 2025-11-29 13:26 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -1071,17 +1068,11 @@
         
         // パネルの表示/非表示
         settingsBtn.addEventListener('click', () => {
-            settingsModal.style.display = 'flex';
+            settingsModal.style.display = 'block';
         });
         
         closeBtn.addEventListener('click', () => {
             settingsModal.style.display = 'none';
-        });
-        
-        settingsModal.addEventListener('click', (e) => {
-            if (e.target === settingsModal) {
-                settingsModal.style.display = 'none';
-            }
         });
         
         // 全画面表示ボタン
@@ -1503,24 +1494,28 @@
             
             console.log(`行の高さ: ${lineHeight}px`);
             
-            // 初期位置を1行分下に設定
-            textLines.style.transform = `translateY(${lineHeight}px)`;
+            // 現在のtransform値を取得（累積移動量）
+            const currentTransform = textLines.style.transform;
+            const currentY = currentTransform.match(/translateY\((-?\d+(?:\.\d+)?)px\)/) 
+                ? parseFloat(currentTransform.match(/translateY\((-?\d+(?:\.\d+)?)px\)/)[1]) 
+                : 0;
+            
+            // 新しい位置 = 現在の位置 - 1行分（上に移動）
+            const newY = currentY - lineHeight;
             
             // 次のフレームでアニメーション開始
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     const duration = settings.animationDuration;
                     textLines.style.transition = `transform ${duration}s linear`;
-                    textLines.style.transform = 'translateY(0)';
+                    textLines.style.transform = `translateY(${newY}px)`;
                     
-                    console.log(`1行スクロール実行: ${lineHeight}px上に移動、速度: ${duration}秒`);
+                    console.log(`1行スクロール実行: ${currentY}px → ${newY}px（${lineHeight}px上に移動）、速度: ${duration}秒`);
                 });
             });
             
             // アニメーション完了後にコールバック
             setTimeout(() => {
-                textLines.style.transition = 'none';
-                textLines.style.transform = 'translateY(0)';
                 console.log('1行スクロール完了');
                 if (callback) callback();
             }, settings.animationDuration * 1000);
