@@ -159,34 +159,29 @@
         }
         
         .messages-list {
-            padding: 0;
+            padding: 20px;
         }
         
         .message-item {
-            padding: 10px 15px;
-            margin-bottom: 0;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        /* 送信者別の背景色 */
-        .message-item[data-sender="prev"] {
-            background-color: #e3f2fd;  /* 水色 - 前の順番 */
-        }
-        
-        .message-item[data-sender="current"] {
-            background-color: #e8f5e8;  /* 緑 - 自分 */
-        }
-        
-        .message-item[data-sender="next"] {
-            background-color: #fff8e1;  /* 黄色 - 次の順番 */
+            padding: 15px;
+            margin-bottom: 12px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+            transition: box-shadow 0.3s;
         }
         
         .message-item:hover {
-            opacity: 0.9;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .message-header {
-            display: none;  /* ログ番号と送信者を非表示 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #6c757d;
         }
         
         .message-sender {
@@ -280,7 +275,7 @@
 </head>
 <body>
     <div class="header">
-        <!-- <h1>📋 送信済みメッセージログ</h1> -->
+        <h1>📋 送信済みメッセージログ</h1>
         <div class="status-bar">
             <div class="connection-status">
                 <div id="statusIndicator" class="status-indicator"></div>
@@ -289,8 +284,8 @@
             <div class="log-stats" id="logStats">ログ: 0件</div>
         </div>
         <div class="controls">
-            <button id="exportTextBtn" class="btn btn-primary">📄 ログ出力</button>
-            <button id="exportTimecodeBtn" class="btn btn-primary">⏰ ログ出力(tc付き)</button>
+            <button id="exportTextBtn" class="btn btn-primary">📄 テキストのみエクスポート</button>
+            <button id="exportTimecodeBtn" class="btn btn-primary">⏰ タイムコード付きエクスポート</button>
             <button id="refreshBtn" class="btn btn-secondary">🔄 更新</button>
             <button id="clearLogBtn" class="btn btn-danger">🗑️ ログクリア</button>
             <div class="timestamp-toggle">
@@ -464,20 +459,6 @@
             
             const messageElement = document.createElement('div');
             messageElement.className = 'message-item';
-            
-            // 送信者に応じた背景色を設定
-            let senderType = 'current'; // デフォルト
-            const senderName = message.sender || '';
-            
-            if (senderName.includes('前の順番') || senderName === 'あなた (前の順番)') {
-                senderType = 'prev';
-            } else if (senderName.includes('次の順番') || senderName === 'あなた (次の順番)') {
-                senderType = 'next';
-            } else {
-                senderType = 'current';
-            }
-            
-            messageElement.setAttribute('data-sender', senderType);
             
             const timestamp = new Date(message.timestamp);
             const timeString = timestamp.toLocaleTimeString('ja-JP');
