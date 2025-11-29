@@ -503,7 +503,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2025-11-29 13:03 JST mask</span>
+            <span class="version-info">最終更新: 2025-11-29 13:12 JST mask</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -654,11 +654,14 @@
                 </div>
                 
                 <div class="setting-group">
-                    <label class="setting-label">最大表示行数</label>
+                    <label class="setting-label">表示エリア高さ</label>
                     <div class="setting-row">
-                        <input type="range" class="setting-slider" id="maxLinesSlider" min="1" max="20" value="10">
-                        <input type="number" class="setting-input" id="maxLinesInput" min="1" max="99" value="10">
-                        <span class="setting-unit">行</span>
+                        <input type="range" class="setting-slider" id="visibleHeightSlider" min="100" max="1000" step="10" value="300">
+                        <input type="number" class="setting-input" id="visibleHeightInput" min="50" max="2000" step="10" value="300">
+                        <span class="setting-unit">px</span>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ 字幕が表示される領域の高さをピクセルで指定します。上部はマスクで隠されます。
                     </div>
                 </div>
                 
@@ -758,7 +761,7 @@
             fontColor: '#ffffff',
             backgroundColor: '#000000',
             maxCharsPerLine: 30,
-            maxVisibleLines: 10,
+            visibleHeightPixels: 300,  // 表示エリアの高さ（ピクセル）
             animationDuration: 0.8,
             fullWidthMode: false,
             showDebugInfo: false,
@@ -810,8 +813,8 @@
             // スクロール設定
             document.getElementById('scrollSpeedSlider').value = settings.animationDuration;
             document.getElementById('scrollSpeedInput').value = settings.animationDuration;
-            document.getElementById('maxLinesSlider').value = settings.maxVisibleLines;
-            document.getElementById('maxLinesInput').value = settings.maxVisibleLines;
+            document.getElementById('visibleHeightSlider').value = settings.visibleHeightPixels;
+            document.getElementById('visibleHeightInput').value = settings.visibleHeightPixels;
             document.getElementById('charsPerLineSlider').value = settings.maxCharsPerLine;
             document.getElementById('charsPerLineInput').value = settings.maxCharsPerLine;
             
@@ -872,7 +875,7 @@
                 fontBold: settings.fontBold,
                 fontColor: settings.fontColor,
                 backgroundColor: settings.backgroundColor,
-                maxVisibleLines: settings.maxVisibleLines,
+                visibleHeightPixels: settings.visibleHeightPixels,
                 animationDuration: settings.animationDuration,
                 showDebugInfo: settings.showDebugInfo
             });
@@ -883,11 +886,8 @@
             // text-display-areaの実際の高さを取得
             const containerHeight = textDisplayArea.clientHeight;
             
-            // 1行の高さを計算
-            const lineHeight = settings.fontSize * settings.lineHeight + 16; // padding 8px * 2
-            
-            // 表示したい高さ
-            const visibleHeight = settings.maxVisibleLines * lineHeight;
+            // 表示したい高さ（設定値）
+            const visibleHeight = settings.visibleHeightPixels;
             
             // マスクの高さ = コンテナ全体の高さ - 表示したい高さ
             const maskHeight = Math.max(0, containerHeight - visibleHeight);
@@ -943,7 +943,7 @@
             syncSliderInput('fontSizeSlider', 'fontSizeInput', 'fontSize');
             syncSliderInput('lineHeightSlider', 'lineHeightInput', 'lineHeight');
             syncSliderInput('scrollSpeedSlider', 'scrollSpeedInput', 'animationDuration');
-            syncSliderInput('maxLinesSlider', 'maxLinesInput', 'maxVisibleLines');
+            syncSliderInput('visibleHeightSlider', 'visibleHeightInput', 'visibleHeightPixels');
             syncSliderInput('charsPerLineSlider', 'charsPerLineInput', 'maxCharsPerLine');
             
             // フォントフェイス選択
