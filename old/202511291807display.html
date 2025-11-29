@@ -500,7 +500,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2024-11-28 03:30 JST</span>
+            <span class="version-info">最終更新: 2024-11-28 03:15 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -1653,15 +1653,8 @@
             // 初回メッセージの場合
             if (!hasMessages) {
                 hasMessages = true;
-                displayedLineCount = 0; // 0行から始める
-                
-                // 初回も1行ずつスクロール
-                const initialLineCount = textLineArray.length;
-                if (initialLineCount > 0) {
-                    performContinuousScrollAnimation(initialLineCount);
-                } else {
-                    updateDisplay();
-                }
+                displayedLineCount = textLineArray.length; // 初期化
+                updateDisplay();
                 updateDebugInfo();
                 return;
             }
