@@ -232,7 +232,7 @@
             background-color: rgba(26, 26, 26, 0.95);
             backdrop-filter: blur(10px);
             display: none;
-            z-index: 2000;
+            z-index: 3000;
             box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
             overflow-y: auto;
         }
@@ -500,7 +500,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2025-11-29 13:26 JST</span>
+            <span class="version-info">最終更新: 2025-11-29 13:37 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -537,7 +537,12 @@
     <div class="settings-modal" id="settingsModal">
         <div class="settings-panel">
             <div class="settings-header">
-                <h2 class="settings-title">表示設定</h2>
+                <div>
+                    <h2 class="settings-title">表示設定</h2>
+                    <div style="font-size: 12px; color: #888; margin-top: 4px;">
+                        ショートカット: Ctrl+, (Windows) / Cmd+, (Mac)
+                    </div>
+                </div>
                 <button class="close-btn" id="closeBtn">×</button>
             </div>
             
@@ -1075,6 +1080,22 @@
             settingsModal.style.display = 'none';
         });
         
+        // ショートカットキーで設定パネルを開閉（Ctrl+, または Cmd+,）
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+, または Cmd+, （macOS）
+            if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+                e.preventDefault();
+                // 設定パネルの表示を切り替え
+                if (settingsModal.style.display === 'block') {
+                    settingsModal.style.display = 'none';
+                    console.log('設定パネルを閉じました（ショートカットキー）');
+                } else {
+                    settingsModal.style.display = 'block';
+                    console.log('設定パネルを開きました（ショートカットキー: Ctrl+, または Cmd+,）');
+                }
+            }
+        });
+        
         // 全画面表示ボタン
         const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
         toggleFullscreenBtn.addEventListener('click', () => {
@@ -1494,29 +1515,26 @@
             
             console.log(`行の高さ: ${lineHeight}px`);
             
-            // 現在のtransform値を取得（累積移動量）
-            const currentTransform = textLines.style.transform;
-            const currentY = currentTransform.match(/translateY\((-?\d+(?:\.\d+)?)px\)/) 
-                ? parseFloat(currentTransform.match(/translateY\((-?\d+(?:\.\d+)?)px\)/)[1]) 
-                : 0;
-            
-            // 新しい位置 = 現在の位置 - 1行分（上に移動）
-            const newY = currentY - lineHeight;
+            // 初期位置: 1行分下に配置（新しい行がマスクの下に隠れる）
+            textLines.style.transform = `translateY(${lineHeight}px)`;
             
             // 次のフレームでアニメーション開始
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     const duration = settings.animationDuration;
                     textLines.style.transition = `transform ${duration}s linear`;
-                    textLines.style.transform = `translateY(${newY}px)`;
+                    textLines.style.transform = 'translateY(0)';
                     
-                    console.log(`1行スクロール実行: ${currentY}px → ${newY}px（${lineHeight}px上に移動）、速度: ${duration}秒`);
+                    console.log(`1行スクロール実行: ${lineHeight}px上にせり上がる、速度: ${duration}秒`);
                 });
             });
             
             // アニメーション完了後にコールバック
             setTimeout(() => {
-                console.log('1行スクロール完了');
+                // transformをリセット（次のスクロールのため）
+                textLines.style.transition = 'none';
+                textLines.style.transform = 'translateY(0)';
+                console.log('1行スクロール完了（transformリセット）');
                 if (callback) callback();
             }, settings.animationDuration * 1000);
         }
