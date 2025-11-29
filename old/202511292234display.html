@@ -227,13 +227,12 @@
             right: 0;
             width: 500px;
             height: 100%;
-            background-color: rgba(26, 26, 26, 0.92);
+            background-color: rgba(26, 26, 26, 0.30);
             backdrop-filter: blur(10px);
             display: none;
             z-index: 3000;
             box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
             overflow-y: auto;
-            cursor: move; /* ドラッグ可能を示す */
         }
         
         .settings-panel {
@@ -241,7 +240,6 @@
             padding: 30px;
             width: 100%;
             height: 100%;
-            cursor: default; /* パネル内は通常のカーソル */
         }
         
         .settings-header {
@@ -251,11 +249,6 @@
             margin-bottom: 25px;
             padding-bottom: 15px;
             border-bottom: 1px solid #333;
-            cursor: grab; /* ドラッグハンドル */
-        }
-        
-        .settings-header:active {
-            cursor: grabbing;
         }
         
         .settings-title {
@@ -1105,100 +1098,6 @@
         closeBtn.addEventListener('click', () => {
             settingsModal.style.display = 'none';
         });
-        
-        // ドラッグ機能
-        let isDragging = false;
-        let currentX;
-        let currentY;
-        let initialX;
-        let initialY;
-        let xOffset = 0;
-        let yOffset = 0;
-        
-        const settingsHeader = settingsModal.querySelector('.settings-header');
-        
-        // 位置の読み込み
-        function loadModalPosition() {
-            try {
-                const saved = localStorage.getItem('settingsModalPosition');
-                if (saved) {
-                    const position = JSON.parse(saved);
-                    xOffset = position.x;
-                    yOffset = position.y;
-                    setModalPosition(xOffset, yOffset);
-                } else {
-                    // 初期位置：画面右端
-                    const initialX = window.innerWidth - 500; // モーダル幅500px
-                    xOffset = initialX;
-                    yOffset = 0;
-                    setModalPosition(xOffset, yOffset);
-                }
-            } catch (error) {
-                console.error('設定モーダル位置の読み込みエラー:', error);
-            }
-        }
-        
-        // 位置の保存
-        function saveModalPosition() {
-            try {
-                localStorage.setItem('settingsModalPosition', JSON.stringify({
-                    x: xOffset,
-                    y: yOffset
-                }));
-            } catch (error) {
-                console.error('設定モーダル位置の保存エラー:', error);
-            }
-        }
-        
-        // モーダルの位置を設定
-        function setModalPosition(x, y) {
-            settingsModal.style.right = 'auto';
-            settingsModal.style.top = 'auto';
-            settingsModal.style.left = x + 'px';
-            settingsModal.style.top = y + 'px';
-        }
-        
-        settingsHeader.addEventListener('mousedown', dragStart);
-        document.addEventListener('mousemove', drag);
-        document.addEventListener('mouseup', dragEnd);
-        
-        function dragStart(e) {
-            initialX = e.clientX - xOffset;
-            initialY = e.clientY - yOffset;
-            
-            if (e.target === settingsHeader || settingsHeader.contains(e.target)) {
-                // 閉じるボタンはドラッグ対象外
-                if (!e.target.closest('.close-btn')) {
-                    isDragging = true;
-                }
-            }
-        }
-        
-        function drag(e) {
-            if (isDragging) {
-                e.preventDefault();
-                
-                currentX = e.clientX - initialX;
-                currentY = e.clientY - initialY;
-                
-                xOffset = currentX;
-                yOffset = currentY;
-                
-                setModalPosition(currentX, currentY);
-            }
-        }
-        
-        function dragEnd(e) {
-            if (isDragging) {
-                initialX = currentX;
-                initialY = currentY;
-                isDragging = false;
-                saveModalPosition();
-            }
-        }
-        
-        // 初期位置を読み込み
-        loadModalPosition();
         
         // ショートカットキーで設定パネルを開閉（Ctrl+, または Cmd+,）
         document.addEventListener('keydown', (e) => {
