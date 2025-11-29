@@ -163,7 +163,7 @@
         }
         
         .message-item {
-            padding: 10px 15px;
+            padding: 0;
             margin-bottom: 0;
             border-bottom: 1px solid #dee2e6;
         }
@@ -208,6 +208,7 @@
             line-height: 1.5;
             color: #333;
             white-space: pre-wrap;
+            padding: 10px 15px;
             word-wrap: break-word;
         }
         
@@ -466,18 +467,29 @@
             messageElement.className = 'message-item';
             
             // 送信者に応じた背景色を設定
-            let senderType = 'current'; // デフォルト
             const senderName = message.sender || '';
+            let senderType = 'current'; // デフォルト
             
-            if (senderName.includes('前の順番') || senderName === 'あなた (前の順番)') {
+            console.log('送信者:', senderName);
+            
+            // 送信者名で判定
+            if (senderName.includes('あなた (前の順番)') || senderName.includes('前の順番')) {
                 senderType = 'prev';
-            } else if (senderName.includes('次の順番') || senderName === 'あなた (次の順番)') {
+                console.log('→ 前の順番（水色）');
+            } else if (senderName.includes('あなた (次の順番)') || senderName.includes('次の順番')) {
                 senderType = 'next';
-            } else {
+                console.log('→ 次の順番（黄色）');
+            } else if (senderName === 'AAA' || senderName.includes('AAA')) {
                 senderType = 'current';
+                console.log('→ 現在（緑）');
+            } else {
+                // その他の場合もcurrentとして扱う
+                senderType = 'current';
+                console.log('→ その他（緑）');
             }
             
             messageElement.setAttribute('data-sender', senderType);
+            console.log('data-sender:', senderType);
             
             const timestamp = new Date(message.timestamp);
             const timeString = timestamp.toLocaleTimeString('ja-JP');
