@@ -310,7 +310,7 @@ function generateCSV(type, room) {
 
 // メッセージ一覧を取得するAPI
 app.get('/api/messages', (req, res) => {
-  const roomId = req.query.roomId;
+  const roomId = req.query.room;
   
   if (!roomId || !rooms.has(roomId)) {
     return res.status(400).json({ error: '無効なルームIDです' });
@@ -400,7 +400,7 @@ app.post('/api/translation-config', (req, res) => {
 // ログエクスポート用エンドポイント
 app.get('/api/export/:type', (req, res) => {
   const type = req.params.type;
-  const roomId = req.query.roomId;
+  const roomId = req.query.room;
   
   console.log(`エクスポートリクエスト受信: ${type}, ルームID: ${roomId}`);
   
@@ -554,7 +554,7 @@ app.get('/api/rooms/:roomId', basicAuth, (req, res) => {
 
 // ログ統計情報取得 (修正版)
 app.get('/api/log-stats', (req, res) => {
-  const roomId = req.query.roomId;
+  const roomId = req.query.room;
   
   if (!roomId || !rooms.has(roomId)) {
     return res.status(400).json({ 

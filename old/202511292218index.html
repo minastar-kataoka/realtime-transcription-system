@@ -1580,7 +1580,7 @@
         async function updateLogStats() {
             try {
                 // ✅ roomIdをクエリパラメータに含める
-                const response = await fetch(`/api/log-stats?roomId=${currentRoomId}`);
+                const response = await fetch(`/api/log-stats?room=${currentRoomId}`);
                 
                 if (response.ok) {
                     const stats = await response.json();
@@ -1626,7 +1626,7 @@
                 }
                 
                 // ✅ roomIdをクエリパラメータに含める
-                const url = `/api/export/${type}?roomId=${currentRoomId}`;
+                const url = `/api/export/${type}?room=${currentRoomId}`;
                 console.log(`リクエストURL: ${url}`);
                 
                 const response = await fetch(url);
