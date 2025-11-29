@@ -491,7 +491,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2025-11-29 10:38 JST</span>
+            <span class="version-info">最終更新: 2025-11-29 10:30 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -1456,6 +1456,12 @@
         }
         
         function performSingleLineScroll(callback) {
+            if (textLineArray.length <= settings.maxVisibleLines) {
+                updateDisplay();
+                if (callback) callback();
+                return;
+            }
+            
             console.log('1行スクロールアニメーション開始');
             
             // 1. 現在表示すべき行を取得
@@ -1473,8 +1479,6 @@
             // 2. 実際の行の高さを取得
             const firstLine = textLines.querySelector('.text-line');
             const lineHeight = firstLine ? firstLine.offsetHeight : (settings.fontSize * settings.lineHeight);
-            
-            console.log(`行の高さ: ${lineHeight}px`);
             
             // 3. 初期位置を1行分下に設定
             textLines.style.transform = `translateY(${lineHeight}px)`;
