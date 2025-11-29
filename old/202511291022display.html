@@ -124,7 +124,7 @@
             color: #fff;
             word-wrap: break-word;
             white-space: pre-wrap;
-            transition: transform 0.8s linear;
+            transition: transform 0.8s ease-out;
             /* アニメーション最適化 */
             will-change: transform;
             backface-visibility: hidden;
@@ -491,7 +491,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2024-11-28 01:00 JST</span>
+            <span class="version-info">最終更新: 2024-11-28 00:30 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -629,14 +629,11 @@
             <!-- スクロール設定タブ -->
             <div class="tab-content" id="scrollTab">
                 <div class="setting-group">
-                    <label class="setting-label">スクロール速度（1行あたり）</label>
+                    <label class="setting-label">スクロール速度</label>
                     <div class="setting-row">
-                        <input type="range" class="setting-slider" id="scrollSpeedSlider" min="0.3" max="5.0" step="0.1" value="0.8">
-                        <input type="number" class="setting-input" id="scrollSpeedInput" min="0.1" max="10.0" step="0.1" value="0.8">
+                        <input type="range" class="setting-slider" id="scrollSpeedSlider" min="0.2" max="1.5" step="0.1" value="0.8">
+                        <input type="number" class="setting-input" id="scrollSpeedInput" min="0.2" max="1.5" step="0.1" value="0.8">
                         <span class="setting-unit">秒</span>
-                    </div>
-                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
-                        ※ 値を大きくするとゆっくり、小さくすると速くなります。複数行が追加された場合も同じ速度で連続スクロールします。
                     </div>
                 </div>
                 
@@ -1420,90 +1417,6 @@
             console.log(`表示更新: 全${textLineArray.length}行中、最新${visibleLines.length}行を表示`);
         }
         
-        // 連続スクロールアニメーション（スターウォーズ風）
-        let scrollQueue = [];
-        let isProcessingQueue = false;
-        
-        function performContinuousScrollAnimation(lineCount) {
-            console.log(`${lineCount}行の連続スクロールを開始`);
-            
-            // 追加された行数をキューに追加
-            for (let i = 0; i < lineCount; i++) {
-                scrollQueue.push(i);
-            }
-            
-            // キューの処理を開始
-            if (!isProcessingQueue) {
-                processScrollQueue();
-            }
-        }
-        
-        function processScrollQueue() {
-            if (scrollQueue.length === 0) {
-                isProcessingQueue = false;
-                console.log('連続スクロール完了');
-                return;
-            }
-            
-            isProcessingQueue = true;
-            scrollQueue.shift(); // 1つ処理
-            
-            // 1行分のスクロールアニメーションを実行
-            performSingleLineScroll(() => {
-                // 次のスクロールを実行
-                processScrollQueue();
-            });
-        }
-        
-        function performSingleLineScroll(callback) {
-            if (textLineArray.length <= settings.maxVisibleLines) {
-                updateDisplay();
-                if (callback) callback();
-                return;
-            }
-            
-            console.log('1行スクロールアニメーション開始');
-            
-            // 1. 現在表示すべき行を取得
-            const visibleLines = textLineArray.slice(-settings.maxVisibleLines);
-            
-            // 新しい内容を表示
-            const htmlWithNew = visibleLines.map(line => 
-                `<div class="text-line">${line || '&nbsp;'}</div>`
-            ).join('');
-            
-            // アニメーション無しで内容を更新
-            textLines.style.transition = 'none';
-            textLines.innerHTML = htmlWithNew;
-            
-            // 2. 実際の行の高さを取得
-            const firstLine = textLines.querySelector('.text-line');
-            const lineHeight = firstLine ? firstLine.offsetHeight : (settings.fontSize * settings.lineHeight);
-            
-            // 3. 初期位置を1行分下に設定
-            textLines.style.transform = `translateY(${lineHeight}px)`;
-            
-            // 4. 次のフレームでアニメーション開始
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    // スクロール速度の設定を使用
-                    const duration = settings.animationDuration;
-                    textLines.style.transition = `transform ${duration}s linear`;
-                    textLines.style.transform = 'translateY(0)';
-                    
-                    console.log(`1行スクロール実行: ${lineHeight}px上に移動、速度: ${duration}秒`);
-                });
-            });
-            
-            // 5. アニメーション完了後にコールバック
-            setTimeout(() => {
-                textLines.style.transition = 'none';
-                textLines.style.transform = 'translateY(0)';
-                console.log('1行スクロール完了');
-                if (callback) callback();
-            }, settings.animationDuration * 1000);
-        }
-        
         // スクロールアニメーション実行（改良版）
         function performScrollAnimation() {
             if (isAnimating || textLineArray.length <= settings.maxVisibleLines) {
@@ -1540,7 +1453,7 @@
             // 4. 次のフレームでアニメーション開始
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    textLines.style.transition = `transform ${settings.animationDuration}s linear`;
+                    textLines.style.transition = `transform ${settings.animationDuration}s ease-out`;
                     textLines.style.transform = 'translateY(0)';
                     
                     console.log(`スクロール実行: ${lineHeight}px上に移動`);
@@ -1618,10 +1531,8 @@
             }
             
             // 行が増えた場合はスクロールアニメーション
-            const addedLines = textLineArray.length - previousLineCount;
-            if (addedLines > 0) {
-                // 追加された行数分、連続してスクロール
-                performContinuousScrollAnimation(addedLines);
+            if (textLineArray.length > previousLineCount) {
+                performScrollAnimation();
             } else {
                 updateDisplay();
             }
