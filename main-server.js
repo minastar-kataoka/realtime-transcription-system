@@ -895,6 +895,7 @@ io.on('connection', (socket) => {
         id: Date.now(),
         text: data.translatedText,
         sender: 'テイク担当者(翻訳版)',
+        senderId: socket.id,  // 管理者のIDを追加
         timestamp: new Date(),
         isTranslated: true,
         originalText: data.originalText,
@@ -1015,6 +1016,7 @@ io.on('connection', (socket) => {
         id: Date.now(),
         text: data.text,
         sender: 'テイク担当者',
+        senderId: socket.id,  // 管理者のIDを追加
         timestamp: new Date()
       };
       
@@ -1157,6 +1159,7 @@ io.on('connection', (socket) => {
         id: Date.now(),
         text: data.text,
         sender: currentSender.name,
+        senderId: currentSender.id,  // 送信者IDを追加
         timestamp: new Date()
       };
       
@@ -1235,6 +1238,7 @@ io.on('connection', (socket) => {
         id: Date.now(),
         text: data.text,
         sender: speechSender,
+        senderId: data.senderId || socket.id,  // 送信者IDを追加
         timestamp: new Date(),
         isFromSpeech: true,
         language: data.language,
