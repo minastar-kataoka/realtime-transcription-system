@@ -751,32 +751,6 @@ io.on('connection', (socket) => {
     console.log('表示画面が接続しました:', socket.id, 'ルーム:', roomId);
   });
   
-  // ログ画面からの接続を識別
-  socket.on('join_logs', (data) => {
-    const roomId = data?.roomId;
-    
-    if (!roomId || !rooms.has(roomId)) {
-      socket.emit('error', { message: '無効なルームIDです' });
-      return;
-    }
-    
-    currentRoomId = roomId;
-    currentRoom = rooms.get(roomId);
-    
-    // Socket.ioのルームに参加
-    socket.join(roomId);
-    
-    console.log('ログ画面が接続しました:', socket.id, 'ルーム:', roomId);
-    
-    // 現在の参加者情報を送信
-    const currentSender = getCurrentSender(currentRoom);
-    socket.emit('participants_updated', {
-      participants: currentRoom.participants,
-      currentSender: currentSender,
-      senderIndex: currentRoom.currentSenderIndex
-    });
-  });
-  
   // システム状態取得要求
   socket.on('get_system_status', () => {
     socket.emit('system_status', {

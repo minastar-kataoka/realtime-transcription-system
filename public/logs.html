@@ -354,10 +354,19 @@
         // Socket.io接続
         const socket = io();
         
+        // 参加者情報を格納
+        let participants = [];
+        
         socket.on('connect', () => {
             statusIndicator.className = 'status-indicator connected';
             connectionText.textContent = '接続済み';
             console.log('Socket.io接続成功:', socket.id);
+            
+            // ログ画面としてルームに参加
+            if (roomId) {
+                socket.emit('join_logs', { roomId: roomId });
+                console.log('join_logsイベント送信:', roomId);
+            }
             
             // 接続後に既存ログを読み込み
             loadExistingLogs();
@@ -373,6 +382,14 @@
             statusIndicator.className = 'status-indicator';
             connectionText.textContent = '接続エラー';
             console.error('Socket.io接続エラー:', error);
+        });
+        
+        // 参加者情報の更新
+        socket.on('participants_updated', (data) => {
+            participants = data.participants || [];
+            console.log('参加者情報更新:', participants);
+            // 既存のメッセージを再描画（背景色を更新）
+            renderAllMessages();
         });
         
         // リアルタイムメッセージ受信
@@ -466,30 +483,11 @@
             const messageElement = document.createElement('div');
             messageElement.className = 'message-item';
             
-            // 送信者に応じた背景色を設定
-            const senderName = message.sender || '';
-            let senderType = 'current'; // デフォルト
-            
-            console.log('送信者:', senderName);
-            
-            // 送信者名で判定
-            if (senderName.includes('あなた (前の順番)') || senderName.includes('前の順番')) {
-                senderType = 'prev';
-                console.log('→ 前の順番（水色）');
-            } else if (senderName.includes('あなた (次の順番)') || senderName.includes('次の順番')) {
-                senderType = 'next';
-                console.log('→ 次の順番（黄色）');
-            } else if (senderName === 'AAA' || senderName.includes('AAA')) {
-                senderType = 'current';
-                console.log('→ 現在（緑）');
-            } else {
-                // その他の場合もcurrentとして扱う
-                senderType = 'current';
-                console.log('→ その他（緑）');
-            }
-            
+            // 送信者IDから順番を判定
+            const senderType = getSenderType(message.senderId);
             messageElement.setAttribute('data-sender', senderType);
-            console.log('data-sender:', senderType);
+            
+            console.log('送信者:', message.sender, 'ID:', message.senderId, '→', senderType);
             
             const timestamp = new Date(message.timestamp);
             const timeString = timestamp.toLocaleTimeString('ja-JP');
@@ -509,6 +507,32 @@
             `;
             
             messagesList.appendChild(messageElement);
+        }
+        
+        // 送信者IDから順番タイプを判定
+        function getSenderType(senderId) {
+            if (!senderId || participants.length === 0) {
+                return 'current'; // デフォルト
+            }
+            
+            // 参加者リストから送信者のインデックスを取得
+            const senderIndex = participants.findIndex(p => p.id === senderId);
+            
+            if (senderIndex === -1) {
+                console.log('送信者が参加者リストに見つかりません:', senderId);
+                return 'current';
+            }
+            
+            // インデックスに応じて色を決定（0=prev, 1=current, 2=next, ...）
+            const colorIndex = senderIndex % 3;
+            
+            if (colorIndex === 0) {
+                return 'prev';    // 水色
+            } else if (colorIndex === 1) {
+                return 'current'; // 緑
+            } else {
+                return 'next';    // 黄色
+            }
         }
         
         // ログ統計を更新
