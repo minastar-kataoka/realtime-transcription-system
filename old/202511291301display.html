@@ -118,18 +118,6 @@
             justify-content: flex-end;
         }
         
-        /* 上部マスク（表示行数を制限） */
-        .top-mask {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: inherit;
-            z-index: 5;
-            pointer-events: none;
-            transition: height 0.3s ease;
-        }
-        
         .text-lines {
             font-size: 20px;
             line-height: 1.6;
@@ -503,7 +491,7 @@
     <div class="header">
         <div class="title">
             <span>リアルタイム文字起こし</span>
-            <span class="version-info">最終更新: 2024-11-28 02:00 JST</span>
+            <span class="version-info">最終更新: 2024-11-28 01:45 JST</span>
         </div>
         <div class="status-bar">
             <div class="connection-status">
@@ -519,7 +507,6 @@
     
     <div class="main-content">
         <div class="text-display-area" id="textDisplayArea">
-            <div class="top-mask" id="topMask"></div>
             <div class="text-lines" id="textLines"></div>
         </div>
     </div>
@@ -731,7 +718,6 @@
         const connectionText = document.getElementById('connectionText');
         const textDisplayArea = document.getElementById('textDisplayArea');
         const textLines = document.getElementById('textLines');
-        const topMask = document.getElementById('topMask');
         const currentTime = document.getElementById('currentTime');
         const operatorUrl = document.getElementById('operatorUrl');
         const debugInfo = document.getElementById('debugInfo');
@@ -854,13 +840,13 @@
             // 背景色
             document.body.style.backgroundColor = settings.backgroundColor;
             textDisplayArea.style.backgroundColor = settings.backgroundColor;
-            topMask.style.backgroundColor = settings.backgroundColor;
             
-            // 上部マスクの高さを更新（表示行数制御）
-            updateTopMask();
+            // 表示エリアの高さを再計算
+            const lineHeight = settings.fontSize * settings.lineHeight;
+            textDisplayArea.style.height = `calc(${settings.maxVisibleLines} * ${lineHeight}px)`;
             
             // スクロールアニメーションの時間も更新
-            textLines.style.transition = `transform ${settings.animationDuration}s linear`;
+            textLines.style.transition = `transform ${settings.animationDuration}s ease-out`;
             
             // デバッグ情報の表示/非表示
             debugInfo.style.display = settings.showDebugInfo ? 'block' : 'none';
@@ -876,25 +862,6 @@
                 animationDuration: settings.animationDuration,
                 showDebugInfo: settings.showDebugInfo
             });
-        }
-        
-        // 上部マスクの高さを更新
-        function updateTopMask() {
-            // text-display-areaの実際の高さを取得
-            const containerHeight = textDisplayArea.clientHeight;
-            
-            // 1行の高さを計算
-            const lineHeight = settings.fontSize * settings.lineHeight + 16; // padding 8px * 2
-            
-            // 表示したい高さ
-            const visibleHeight = settings.maxVisibleLines * lineHeight;
-            
-            // マスクの高さ = コンテナ全体の高さ - 表示したい高さ
-            const maskHeight = Math.max(0, containerHeight - visibleHeight);
-            
-            topMask.style.height = `${maskHeight}px`;
-            
-            console.log(`マスク更新: コンテナ${containerHeight}px - 表示${visibleHeight}px = マスク${maskHeight}px`);
         }
         
         // 設定パネルの初期化
@@ -1440,14 +1407,17 @@
         
         // 表示を更新
         function updateDisplay() {
-            // 全ての行を表示（マスクで制御）
-            const html = textLineArray.map(line => 
+            // 最新の指定行数を取得
+            const visibleLines = textLineArray.slice(-settings.maxVisibleLines);
+            
+            // HTMLを生成
+            const html = visibleLines.map(line => 
                 `<div class="text-line">${line || '&nbsp;'}</div>`
             ).join('');
             
             textLines.innerHTML = html;
             
-            console.log(`表示更新: 全${textLineArray.length}行を表示`);
+            console.log(`表示更新: 全${textLineArray.length}行中、最新${visibleLines.length}行を表示`);
         }
         
         // 連続スクロールアニメーション（スターウォーズ風）
@@ -1488,27 +1458,31 @@
         function performSingleLineScroll(callback) {
             console.log('1行スクロールアニメーション開始');
             
-            // 全ての行を表示
-            const html = textLineArray.map(line => 
+            // 1. 現在表示すべき行を取得
+            const visibleLines = textLineArray.slice(-settings.maxVisibleLines);
+            
+            // 新しい内容を表示
+            const htmlWithNew = visibleLines.map(line => 
                 `<div class="text-line">${line || '&nbsp;'}</div>`
             ).join('');
             
             // アニメーション無しで内容を更新
             textLines.style.transition = 'none';
-            textLines.innerHTML = html;
+            textLines.innerHTML = htmlWithNew;
             
-            // 実際の行の高さを取得
+            // 2. 実際の行の高さを取得
             const firstLine = textLines.querySelector('.text-line');
             const lineHeight = firstLine ? firstLine.offsetHeight : (settings.fontSize * settings.lineHeight);
             
             console.log(`行の高さ: ${lineHeight}px`);
             
-            // 初期位置を1行分下に設定
+            // 3. 初期位置を1行分下に設定
             textLines.style.transform = `translateY(${lineHeight}px)`;
             
-            // 次のフレームでアニメーション開始
+            // 4. 次のフレームでアニメーション開始
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
+                    // スクロール速度の設定を使用
                     const duration = settings.animationDuration;
                     textLines.style.transition = `transform ${duration}s linear`;
                     textLines.style.transform = 'translateY(0)';
@@ -1517,7 +1491,7 @@
                 });
             });
             
-            // アニメーション完了後にコールバック
+            // 5. アニメーション完了後にコールバック
             setTimeout(() => {
                 textLines.style.transition = 'none';
                 textLines.style.transform = 'translateY(0)';
@@ -1628,6 +1602,7 @@
             textLineArray = newLines;
             
             console.log(`行数変化: ${previousLineCount} → ${textLineArray.length}`);
+            console.log('分割後の行:', textLineArray.slice(0, 5));
             console.log('=== テキスト追加終了 ===');
             
             // 初回メッセージの場合
@@ -1641,8 +1616,15 @@
             // 実際に増えた行数
             const actualAddedLines = textLineArray.length - previousLineCount;
             
+            // 実際に画面に表示される行数の増加分を計算
+            const previousVisibleCount = Math.min(previousLineCount, settings.maxVisibleLines);
+            const currentVisibleCount = Math.min(textLineArray.length, settings.maxVisibleLines);
+            const visibleAddedLines = currentVisibleCount - previousVisibleCount;
+            
+            console.log(`表示行数変化: ${previousVisibleCount} → ${currentVisibleCount} (表示増加: ${visibleAddedLines}行, 実際増加: ${actualAddedLines}行)`);
+            
             if (actualAddedLines > 0) {
-                // 行が増えたら、その分だけスクロール
+                // 行が増えた場合は、実際に増えた行数分スクロール
                 performContinuousScrollAnimation(actualAddedLines);
             } else {
                 updateDisplay();
