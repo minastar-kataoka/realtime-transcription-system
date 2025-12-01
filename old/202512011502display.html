@@ -2027,34 +2027,11 @@
         // テキストを行に分割
         // 改良版: 単語境界を考慮した改行処理
         function splitTextIntoLines(text) {
+            const lines = text.split('\n');
+            const resultLines = [];
+            
             // スマホ・タブレット判定（タッチデバイス or 手動設定）
             const isMobile = isMobileUI();
-            
-            if (isMobile) {
-                // スマホ用: すべての改行を削除し、強制改行文字のみで分割
-                // 1. まず通常の改行をすべて削除
-                let processedText = text.replace(/\n/g, '');
-                
-                // 2. 強制改行文字で分割
-                const forceBreakChar = settings.forceLineBreakChar || '●';
-                const lines = processedText.split(forceBreakChar);
-                
-                // 空行も保持（強制改行文字が連続している場合）
-                return lines;
-            }
-            
-            // PC用: 改行処理設定に従う
-            let processedText = text;
-            
-            // 「受信テキストの改行をすべて削除する」がONの場合
-            if (settings.removeLineBreaks) {
-                processedText = processedText.replace(/\n/g, '');
-            }
-            
-            // 強制改行文字で分割
-            const forceBreakChar = settings.forceLineBreakChar || '●';
-            const lines = processedText.split(forceBreakChar);
-            const resultLines = [];
             
             for (const line of lines) {
                 if (line.length === 0) {
@@ -2062,8 +2039,8 @@
                     continue;
                 }
                 
-                // 1行文字数制限がOFFの場合は改行処理をスキップ（レスポンシブ）
-                if (!settings.enableCharsPerLine) {
+                // スマホの場合、または1行文字数制限がOFFの場合は改行処理をスキップ（レスポンシブ）
+                if (isMobile || !settings.enableCharsPerLine) {
                     resultLines.push(line);
                 } else {
                     // 改行処理を実行
