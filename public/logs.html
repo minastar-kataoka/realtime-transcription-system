@@ -537,8 +537,8 @@
                 </div>
                 <div class="message-text">${message.text}</div>
                 <div class="message-actions">
-                    <button class="btn-copy" onclick="copyMessage(${messageNumber - 1})">コピー</button>
-                    <button class="btn-copy-from" onclick="copyFromMessage(${messageNumber - 1})">↓コピー</button>
+                    <button class="btn-copy" onclick="copyMessage(${messageNumber - 1}, event)">コピー</button>
+                    <button class="btn-copy-from" onclick="copyFromMessage(${messageNumber - 1}, event)">↓コピー</button>
                 </div>
             `;
             
@@ -572,9 +572,9 @@
         }
         
         // 個別メッセージをコピー
-        function copyMessage(index) {
+        function copyMessage(index, event) {
             if (index < 0 || index >= messages.length) {
-                alert('メッセージが見つかりません');
+                console.error('メッセージが見つかりません:', index);
                 return;
             }
             
@@ -586,22 +586,32 @@
                 // 一時的なフィードバック表示
                 const btn = event.target;
                 const originalText = btn.textContent;
+                const originalBg = btn.style.backgroundColor;
                 btn.textContent = '✓';
                 btn.style.backgroundColor = '#20c997';
                 setTimeout(() => {
                     btn.textContent = originalText;
-                    btn.style.backgroundColor = '';
+                    btn.style.backgroundColor = originalBg;
                 }, 1000);
             }).catch(err => {
                 console.error('コピー失敗:', err);
-                alert('コピーに失敗しました');
+                // エラー時のフィードバック
+                const btn = event.target;
+                const originalText = btn.textContent;
+                const originalBg = btn.style.backgroundColor;
+                btn.textContent = '✗';
+                btn.style.backgroundColor = '#dc3545';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = originalBg;
+                }, 1000);
             });
         }
         
         // 該当メッセージから最後までをコピー
-        function copyFromMessage(index) {
+        function copyFromMessage(index, event) {
             if (index < 0 || index >= messages.length) {
-                alert('メッセージが見つかりません');
+                console.error('メッセージが見つかりません:', index);
                 return;
             }
             
@@ -613,15 +623,25 @@
                 // 一時的なフィードバック表示
                 const btn = event.target;
                 const originalText = btn.textContent;
+                const originalBg = btn.style.backgroundColor;
                 btn.textContent = '✓';
                 btn.style.backgroundColor = '#20c997';
                 setTimeout(() => {
                     btn.textContent = originalText;
-                    btn.style.backgroundColor = '';
+                    btn.style.backgroundColor = originalBg;
                 }, 1000);
             }).catch(err => {
                 console.error('コピー失敗:', err);
-                alert('コピーに失敗しました');
+                // エラー時のフィードバック
+                const btn = event.target;
+                const originalText = btn.textContent;
+                const originalBg = btn.style.backgroundColor;
+                btn.textContent = '✗';
+                btn.style.backgroundColor = '#dc3545';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = originalBg;
+                }, 1000);
             });
         }
         
