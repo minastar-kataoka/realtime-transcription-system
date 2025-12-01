@@ -2369,24 +2369,14 @@
             
             let processedText = text;
             
-            // PC/スマホ判定
-            const isMobile = isMobileUI();
-            console.log('表示モード:', isMobile ? 'スマホ用' : 'PC用');
-            
-            // 改行処理
-            if (isMobile) {
-                // スマホ用: 常に改行を削除
+            // 改行処理設定に基づいて処理
+            if (settings.removeLineBreaks) {
+                // すべての改行を削除
                 processedText = processedText.replace(/\r?\n/g, '');
-                console.log('改行削除後（スマホ用）:', JSON.stringify(processedText));
-            } else {
-                // PC用: 設定に従う
-                if (settings.removeLineBreaks) {
-                    processedText = processedText.replace(/\r?\n/g, '');
-                    console.log('改行削除後（PC用）:', JSON.stringify(processedText));
-                }
+                console.log('改行削除後:', JSON.stringify(processedText));
             }
             
-            // 強制改行文字を改行に変換（PC/スマホ共通）
+            // 強制改行文字を改行に変換
             if (settings.forceLineBreakChar && settings.forceLineBreakChar.length > 0) {
                 const regex = new RegExp(settings.forceLineBreakChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
                 processedText = processedText.replace(regex, '\n');
