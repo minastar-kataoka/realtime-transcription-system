@@ -515,6 +515,81 @@
             gap: 10px;
         }
         
+        /* スマホテーマ管理 */
+        .mobile-theme-editor {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .theme-editor-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .color-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .color-picker {
+            width: 60px;
+            height: 40px;
+            padding: 0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        .color-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        
+        .color-picker::-webkit-color-swatch {
+            border: none;
+            border-radius: 3px;
+        }
+        
+        .color-text-input {
+            flex: 1;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        
+        .theme-preview-box {
+            margin-top: 15px;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #555;
+        }
+        
+        .preview-text {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        
+        .theme-management-info {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(74, 144, 226, 0.1);
+            border-left: 3px solid #4a90e2;
+            border-radius: 4px;
+        }
+        
         .setting-checkbox {
             width: 20px;
             height: 20px;
@@ -638,15 +713,12 @@
             <div class="settings-header">
                 <div>
                     <h2 class="settings-title">表示設定</h2>
-                    <div style="font-size: 12px; color: #888; margin-top: 4px;">
-                        ショートカット: Ctrl+, (Windows) / Cmd+, (Mac)
-                    </div>
                 </div>
                 <div class="header-controls">
                     <!-- PC用：配置切り替えボタン -->
                     <div class="position-controls pc-only">
                         <button class="position-btn" data-position="left" title="左寄せ">◀</button>
-                        <button class="position-btn" data-position="center" title="中央">●</button>
+                        <button class="position-btn" data-position="center" title="中央">◆</button>
                         <button class="position-btn active" data-position="right" title="右寄せ">▶</button>
                     </div>
                     <button class="close-btn" id="closeBtn">×</button>
@@ -675,9 +747,9 @@
                             <div class="theme-preview" style="background: #000; color: #ffff00;">Aa</div>
                             <span>高コントラスト</span>
                         </button>
-                        <button class="theme-btn" data-theme="soft">
-                            <div class="theme-preview" style="background: #1a1a2e; color: #eee;">Aa</div>
-                            <span>ソフト</span>
+                        <button class="theme-btn" data-theme="inverted">
+                            <div class="theme-preview" style="background: #fff; color: #000;">Aa</div>
+                            <span>反転</span>
                         </button>
                     </div>
                 </div>
@@ -686,9 +758,10 @@
             <!-- PC用：詳細設定タブ -->
             <div class="pc-settings pc-only">
             <div class="settings-tabs">
-                <button class="tab-btn active" data-tab="display">表示設定</button>
-                <button class="tab-btn" data-tab="scroll">スクロール設定</button>
-                <button class="tab-btn" data-tab="config">設定管理</button>
+                <button class="tab-btn active" data-tab="display">表示</button>
+                <button class="tab-btn" data-tab="scroll">スクロール</button>
+                <button class="tab-btn" data-tab="mobile">スマホ表示</button>
+                <button class="tab-btn" data-tab="config">管理</button>
             </div>
             
             <!-- 表示設定タブ -->
@@ -847,6 +920,85 @@
                 </div>
             </div>
             
+            <!-- スマホテーマ管理タブ -->
+            <div class="tab-content" id="mobileTab">
+                <div class="theme-management-info">
+                    <p style="color: #ccc; margin-bottom: 20px; line-height: 1.6;">
+                        スマホ・タブレットで表示画面を開いた時に選択できる3つのカラーテーマを設定します。
+                    </p>
+                </div>
+                
+                <!-- テーマ1: 標準 -->
+                <div class="mobile-theme-editor">
+                    <h3 class="theme-editor-title">テーマ1: 標準</h3>
+                    <div class="setting-group">
+                        <label class="setting-label">文字色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme1FontColorPicker" value="#ffffff">
+                            <input type="text" class="color-text-input" id="theme1FontColorInput" value="#ffffff">
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">背景色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme1BgColorPicker" value="#000000">
+                            <input type="text" class="color-text-input" id="theme1BgColorInput" value="#000000">
+                        </div>
+                    </div>
+                    <div class="theme-preview-box" id="theme1Preview">
+                        <span class="preview-text">Aa</span>
+                    </div>
+                </div>
+                
+                <!-- テーマ2: 高コントラスト -->
+                <div class="mobile-theme-editor">
+                    <h3 class="theme-editor-title">テーマ2: 高コントラスト</h3>
+                    <div class="setting-group">
+                        <label class="setting-label">文字色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme2FontColorPicker" value="#ffff00">
+                            <input type="text" class="color-text-input" id="theme2FontColorInput" value="#ffff00">
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">背景色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme2BgColorPicker" value="#000000">
+                            <input type="text" class="color-text-input" id="theme2BgColorInput" value="#000000">
+                        </div>
+                    </div>
+                    <div class="theme-preview-box" id="theme2Preview">
+                        <span class="preview-text">Aa</span>
+                    </div>
+                </div>
+                
+                <!-- テーマ3: 反転 -->
+                <div class="mobile-theme-editor">
+                    <h3 class="theme-editor-title">テーマ3: 反転</h3>
+                    <div class="setting-group">
+                        <label class="setting-label">文字色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme3FontColorPicker" value="#000000">
+                            <input type="text" class="color-text-input" id="theme3FontColorInput" value="#000000">
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">背景色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme3BgColorPicker" value="#ffffff">
+                            <input type="text" class="color-text-input" id="theme3BgColorInput" value="#ffffff">
+                        </div>
+                    </div>
+                    <div class="theme-preview-box" id="theme3Preview">
+                        <span class="preview-text">Aa</span>
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button class="btn btn-secondary" id="resetMobileThemesBtn">🔄 デフォルトに戻す</button>
+                </div>
+            </div>
+            
             <!-- 設定管理タブ -->
             <div class="tab-content" id="configTab">
                 <div class="setting-group">
@@ -920,11 +1072,16 @@
             showDebugInfo: false,
             removeLineBreaks: false,
             forceLineBreakChar: '●',
-            paddingPixels: 30  // 余白（ピクセル）
+            paddingPixels: 30,  // 余白（ピクセル）
+            mobileThemes: {
+                theme1: { fontColor: '#ffffff', backgroundColor: '#000000' },
+                theme2: { fontColor: '#ffff00', backgroundColor: '#000000' },
+                theme3: { fontColor: '#000000', backgroundColor: '#ffffff' }
+            }
         };
         
         // デフォルト設定
-        const defaultSettings = { ...settings };
+        const defaultSettings = JSON.parse(JSON.stringify(settings)); // ディープコピー
         
         // 設定の読み込み
         function loadSettings() {
@@ -985,6 +1142,33 @@
             // 余白設定
             document.getElementById('paddingSlider').value = settings.paddingPixels;
             document.getElementById('paddingInput').value = settings.paddingPixels;
+            
+            // スマホテーマ設定
+            if (settings.mobileThemes) {
+                document.getElementById('theme1FontColorPicker').value = settings.mobileThemes.theme1.fontColor;
+                document.getElementById('theme1FontColorInput').value = settings.mobileThemes.theme1.fontColor;
+                document.getElementById('theme1BgColorPicker').value = settings.mobileThemes.theme1.backgroundColor;
+                document.getElementById('theme1BgColorInput').value = settings.mobileThemes.theme1.backgroundColor;
+                
+                document.getElementById('theme2FontColorPicker').value = settings.mobileThemes.theme2.fontColor;
+                document.getElementById('theme2FontColorInput').value = settings.mobileThemes.theme2.fontColor;
+                document.getElementById('theme2BgColorPicker').value = settings.mobileThemes.theme2.backgroundColor;
+                document.getElementById('theme2BgColorInput').value = settings.mobileThemes.theme2.backgroundColor;
+                
+                document.getElementById('theme3FontColorPicker').value = settings.mobileThemes.theme3.fontColor;
+                document.getElementById('theme3FontColorInput').value = settings.mobileThemes.theme3.fontColor;
+                document.getElementById('theme3BgColorPicker').value = settings.mobileThemes.theme3.backgroundColor;
+                document.getElementById('theme3BgColorInput').value = settings.mobileThemes.theme3.backgroundColor;
+                
+                // プレビュー更新
+                for (let i = 1; i <= 3; i++) {
+                    const themeKey = `theme${i}`;
+                    const preview = document.getElementById(`theme${i}Preview`);
+                    const theme = settings.mobileThemes[themeKey];
+                    preview.style.backgroundColor = theme.backgroundColor;
+                    preview.style.color = theme.fontColor;
+                }
+            }
         }
         
         // フォントファミリーのマッピング
@@ -1219,6 +1403,101 @@
                 URL.revokeObjectURL(url);
             });
             
+            // スマホテーマ管理
+            function initMobileThemeEditor() {
+                // カラーピッカーとテキスト入力の同期
+                function syncThemeColor(themeNum, colorType) {
+                    const pickerId = `theme${themeNum}${colorType}ColorPicker`;
+                    const inputId = `theme${themeNum}${colorType}ColorInput`;
+                    const picker = document.getElementById(pickerId);
+                    const input = document.getElementById(inputId);
+                    
+                    picker.addEventListener('input', () => {
+                        const color = picker.value;
+                        input.value = color;
+                        updateThemeSettings(themeNum, colorType, color);
+                    });
+                    
+                    input.addEventListener('change', () => {
+                        const color = input.value;
+                        if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                            picker.value = color;
+                            updateThemeSettings(themeNum, colorType, color);
+                        }
+                    });
+                }
+                
+                function updateThemeSettings(themeNum, colorType, color) {
+                    const themeKey = `theme${themeNum}`;
+                    const colorKey = colorType === 'Font' ? 'fontColor' : 'backgroundColor';
+                    settings.mobileThemes[themeKey][colorKey] = color;
+                    updateThemePreview(themeNum);
+                    saveSettings();
+                    updateMobileThemes(); // スマホUIに反映
+                }
+                
+                function updateThemePreview(themeNum) {
+                    const themeKey = `theme${themeNum}`;
+                    const preview = document.getElementById(`theme${themeNum}Preview`);
+                    const theme = settings.mobileThemes[themeKey];
+                    preview.style.backgroundColor = theme.backgroundColor;
+                    preview.style.color = theme.fontColor;
+                }
+                
+                // 各テーマのカラーピッカーを初期化
+                for (let i = 1; i <= 3; i++) {
+                    syncThemeColor(i, 'Font');
+                    syncThemeColor(i, 'Bg');
+                    updateThemePreview(i);
+                }
+            }
+            
+            // スマホUIのテーマボタンを更新
+            function updateMobileThemes() {
+                const themesData = {
+                    default: settings.mobileThemes.theme1,
+                    'high-contrast': settings.mobileThemes.theme2,
+                    inverted: settings.mobileThemes.theme3
+                };
+                
+                // グローバル変数を更新（スマホUIで使用）
+                window.mobileThemesData = themesData;
+            }
+            
+            // スマホテーマをデフォルトに戻す
+            document.getElementById('resetMobileThemesBtn').addEventListener('click', () => {
+                if (confirm('スマホテーマをデフォルトに戻しますか？')) {
+                    settings.mobileThemes = JSON.parse(JSON.stringify(defaultSettings.mobileThemes));
+                    
+                    // UIを更新
+                    document.getElementById('theme1FontColorPicker').value = settings.mobileThemes.theme1.fontColor;
+                    document.getElementById('theme1FontColorInput').value = settings.mobileThemes.theme1.fontColor;
+                    document.getElementById('theme1BgColorPicker').value = settings.mobileThemes.theme1.backgroundColor;
+                    document.getElementById('theme1BgColorInput').value = settings.mobileThemes.theme1.backgroundColor;
+                    
+                    document.getElementById('theme2FontColorPicker').value = settings.mobileThemes.theme2.fontColor;
+                    document.getElementById('theme2FontColorInput').value = settings.mobileThemes.theme2.fontColor;
+                    document.getElementById('theme2BgColorPicker').value = settings.mobileThemes.theme2.backgroundColor;
+                    document.getElementById('theme2BgColorInput').value = settings.mobileThemes.theme2.backgroundColor;
+                    
+                    document.getElementById('theme3FontColorPicker').value = settings.mobileThemes.theme3.fontColor;
+                    document.getElementById('theme3FontColorInput').value = settings.mobileThemes.theme3.fontColor;
+                    document.getElementById('theme3BgColorPicker').value = settings.mobileThemes.theme3.backgroundColor;
+                    document.getElementById('theme3BgColorInput').value = settings.mobileThemes.theme3.backgroundColor;
+                    
+                    for (let i = 1; i <= 3; i++) {
+                        updateThemePreview(i);
+                    }
+                    
+                    saveSettings();
+                    updateMobileThemes();
+                    alert('スマホテーマをデフォルトに戻しました');
+                }
+            });
+            
+            initMobileThemeEditor();
+            updateMobileThemes();
+            
             // 設定のリセット
             document.getElementById('resetConfigBtn').addEventListener('click', () => {
                 if (confirm('設定をリセットしますか？')) {
@@ -1314,15 +1593,27 @@
         });
         
         // スマホ用：カラーテーマボタン
-        const themes = {
-            default: { fontColor: '#ffffff', backgroundColor: '#000000' },
-            'high-contrast': { fontColor: '#ffff00', backgroundColor: '#000000' },
-            soft: { fontColor: '#eeeeee', backgroundColor: '#1a1a2e' }
-        };
+        function getThemesData() {
+            // PC用設定から取得、なければデフォルト
+            if (settings.mobileThemes) {
+                return {
+                    default: settings.mobileThemes.theme1,
+                    'high-contrast': settings.mobileThemes.theme2,
+                    inverted: settings.mobileThemes.theme3
+                };
+            } else {
+                return {
+                    default: { fontColor: '#ffffff', backgroundColor: '#000000' },
+                    'high-contrast': { fontColor: '#ffff00', backgroundColor: '#000000' },
+                    inverted: { fontColor: '#000000', backgroundColor: '#ffffff' }
+                };
+            }
+        }
         
         document.querySelectorAll('.theme-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const theme = btn.dataset.theme;
+                const themes = getThemesData();
                 const colors = themes[theme];
                 
                 settings.fontColor = colors.fontColor;
