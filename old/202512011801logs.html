@@ -159,75 +159,34 @@
         }
         
         .messages-list {
-            padding: 20px;
+            padding: 0;
         }
         
         .message-item {
-            display: flex;
-            gap: 10px;
-            padding: 8px 12px;
-            margin-bottom: 6px;
-            background-color: #f8f9fa;
-            border-radius: 6px;
-            border-left: 4px solid #007bff;
-            transition: box-shadow 0.3s;
+            padding: 0;
+            margin-bottom: 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        /* 送信者別の背景色 - 入力画面と重複しない強めの色 */
+        .message-item[data-sender="prev"] {
+            background-color: #ffccbc;  /* オレンジ系 - 1番目の参加者 */
+        }
+        
+        .message-item[data-sender="current"] {
+            background-color: #e1bee7;  /* 紫系 - 2番目の参加者 */
+        }
+        
+        .message-item[data-sender="next"] {
+            background-color: #c5e1a5;  /* ライムグリーン系 - 3番目の参加者 */
         }
         
         .message-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .message-content {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .message-actions {
-            display: flex;
-            flex-direction: row;
-            gap: 4px;
-            flex-shrink: 0;
-        }
-        
-        .btn-copy {
-            padding: 4px 8px;
-            font-size: 12px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            background-color: #28a745;
-            color: white;
-            white-space: nowrap;
-            transition: background-color 0.2s;
-        }
-        
-        .btn-copy:hover {
-            background-color: #218838;
-        }
-        
-        .btn-copy-from {
-            padding: 4px 8px;
-            font-size: 12px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            background-color: #17a2b8;
-            color: white;
-            white-space: nowrap;
-            transition: background-color 0.2s;
-        }
-        
-        .btn-copy-from:hover {
-            background-color: #138496;
+            opacity: 0.9;
         }
         
         .message-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            font-size: 13px;
-            color: #6c757d;
+            display: none;  /* ログ番号と送信者を非表示 */
         }
         
         .message-sender {
@@ -249,6 +208,7 @@
             line-height: 1.5;
             color: #333;
             white-space: pre-wrap;
+            padding: 10px 15px;
             word-wrap: break-word;
         }
         
@@ -321,7 +281,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>📋 送信済みメッセージログ</h1>
+        <!-- <h1>📋 送信済みメッセージログ</h1> -->
         <div class="status-bar">
             <div class="connection-status">
                 <div id="statusIndicator" class="status-indicator"></div>
@@ -334,12 +294,6 @@
             <button id="exportTimecodeBtn" class="btn btn-primary">⏰ ログ出力(tc付き)</button>
             <button id="refreshBtn" class="btn btn-secondary">🔄 更新</button>
             <button id="clearLogBtn" class="btn btn-danger">🗑️ ログクリア</button>
-            <div class="timestamp-toggle">
-                <span>タイムスタンプ表示</span>
-                <div class="toggle-switch active" id="timestampToggle">
-                    <div class="toggle-slider"></div>
-                </div>
-            </div>
         </div>
     </div>
     
@@ -367,7 +321,6 @@
         const noMessages = document.getElementById('noMessages');
         const messagesContainer = document.getElementById('messagesContainer');
         const autoScrollBtn = document.getElementById('autoScrollBtn');
-        const timestampToggle = document.getElementById('timestampToggle');
         
         // ボタン要素
         const exportTextBtn = document.getElementById('exportTextBtn');
@@ -377,7 +330,6 @@
         
         // 状態管理
         let messages = [];
-        let showTimestamp = true;
         let autoScroll = true; // デフォルトで自動スクロールON
         let messageCount = 0;
         let userScrolled = false; // ユーザーが手動でスクロールしたかを追跡
@@ -394,10 +346,19 @@
         // Socket.io接続
         const socket = io();
         
+        // 参加者情報を格納
+        let participants = [];
+        
         socket.on('connect', () => {
             statusIndicator.className = 'status-indicator connected';
             connectionText.textContent = '接続済み';
             console.log('Socket.io接続成功:', socket.id);
+            
+            // ログ画面としてルームに参加
+            if (roomId) {
+                socket.emit('join_logs', { roomId: roomId });
+                console.log('join_logsイベント送信:', roomId);
+            }
             
             // 接続後に既存ログを読み込み
             loadExistingLogs();
@@ -413,6 +374,14 @@
             statusIndicator.className = 'status-indicator';
             connectionText.textContent = '接続エラー';
             console.error('Socket.io接続エラー:', error);
+        });
+        
+        // 参加者情報の更新
+        socket.on('participants_updated', (data) => {
+            participants = data.participants || [];
+            console.log('参加者情報更新:', participants);
+            // 既存のメッセージを再描画（背景色を更新）
+            renderAllMessages();
         });
         
         // リアルタイムメッセージ受信
@@ -505,23 +474,57 @@
             
             const messageElement = document.createElement('div');
             messageElement.className = 'message-item';
-            messageElement.dataset.messageIndex = messageNumber - 1; // 配列インデックス用
+            
+            // 送信者IDから順番を判定
+            const senderType = getSenderType(message.senderId);
+            messageElement.setAttribute('data-sender', senderType);
+            
+            console.log('送信者:', message.sender, 'ID:', message.senderId, '→', senderType);
             
             const timestamp = new Date(message.timestamp);
             const timeString = timestamp.toLocaleTimeString('ja-JP');
             const dateString = timestamp.toLocaleDateString('ja-JP');
             
             messageElement.innerHTML = `
-                <div class="message-content">
-                    <div class="message-text">${message.text}</div>
+                <div class="message-header">
+                    <div>
+                        <span class="message-number">#${messageNumber}</span>
+                        <span class="message-sender">${message.sender}</span>
+                    </div>
+                    <div class="message-timestamp">
+                        ${dateString} ${timeString}
+                    </div>
                 </div>
-                <div class="message-actions">
-                    <button class="btn-copy" onclick="copyMessage(${messageNumber - 1})">コピー</button>
-                    <button class="btn-copy-from" onclick="copyFromMessage(${messageNumber - 1})">↓コピー</button>
-                </div>
+                <div class="message-text">${message.text}</div>
             `;
             
             messagesList.appendChild(messageElement);
+        }
+        
+        // 送信者IDから順番タイプを判定
+        function getSenderType(senderId) {
+            if (!senderId || participants.length === 0) {
+                return 'current'; // デフォルト
+            }
+            
+            // 参加者リストから送信者のインデックスを取得
+            const senderIndex = participants.findIndex(p => p.id === senderId);
+            
+            if (senderIndex === -1) {
+                console.log('送信者が参加者リストに見つかりません:', senderId);
+                return 'current';
+            }
+            
+            // インデックスに応じて色を決定（0=prev, 1=current, 2=next, ...）
+            const colorIndex = senderIndex % 3;
+            
+            if (colorIndex === 0) {
+                return 'prev';    // 水色
+            } else if (colorIndex === 1) {
+                return 'current'; // 緑
+            } else {
+                return 'next';    // 黄色
+            }
         }
         
         // ログ統計を更新
@@ -540,83 +543,20 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
         
-        // タイムスタンプ表示切り替え
-        function toggleTimestamp() {
-            showTimestamp = !showTimestamp;
-            timestampToggle.classList.toggle('active', showTimestamp);
-            
-            // 既存のタイムスタンプ表示を切り替え
-            const timestamps = document.querySelectorAll('.message-timestamp');
-            timestamps.forEach(timestamp => {
-                timestamp.classList.toggle('hidden', !showTimestamp);
-            });
-            
-            console.log('タイムスタンプ表示:', showTimestamp ? 'ON' : 'OFF');
-        }
-        
-        // 個別メッセージをコピー
-        function copyMessage(index) {
-            if (index < 0 || index >= messages.length) {
-                alert('メッセージが見つかりません');
-                return;
-            }
-            
-            const message = messages[index];
-            const text = message.text;
-            
-            navigator.clipboard.writeText(text).then(() => {
-                console.log('メッセージをコピーしました:', text);
-                // 一時的なフィードバック表示
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '✓';
-                btn.style.backgroundColor = '#20c997';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.backgroundColor = '';
-                }, 1000);
-            }).catch(err => {
-                console.error('コピー失敗:', err);
-                alert('コピーに失敗しました');
-            });
-        }
-        
-        // 該当メッセージから最後までをコピー
-        function copyFromMessage(index) {
-            if (index < 0 || index >= messages.length) {
-                alert('メッセージが見つかりません');
-                return;
-            }
-            
-            const messagesToCopy = messages.slice(index);
-            const text = messagesToCopy.map(m => m.text).join('\n');
-            
-            navigator.clipboard.writeText(text).then(() => {
-                console.log(`${messagesToCopy.length}件のメッセージをコピーしました`);
-                // 一時的なフィードバック表示
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '✓';
-                btn.style.backgroundColor = '#20c997';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.backgroundColor = '';
-                }, 1000);
-            }).catch(err => {
-                console.error('コピー失敗:', err);
-                alert('コピーに失敗しました');
-            });
-        }
-        
-        // TXTエクスポート（旧CSV関数を置き換え）
+        // CSVエクスポート
         async function exportCSV(type) {
             if (messageCount === 0) {
                 alert('エクスポートするデータがありません');
                 return;
             }
             
+            if (!roomId) {
+                alert('ルームIDが取得できません');
+                return;
+            }
+            
             try {
-                const url = `/api/export/${type}`;
+                const url = `/api/export/${type}?roomId=${roomId}`;
                 const response = await fetch(url);
                 
                 if (!response.ok) {
@@ -625,11 +565,11 @@
                 
                 const blob = await response.blob();
                 
-                // ファイル名を生成（拡張子を.txtに変更）
+                // ファイル名を生成
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
                 const filename = type === 'text-only' 
-                    ? `transcription_text_${timestamp}.txt`
-                    : `transcription_timecode_${timestamp}.txt`;
+                    ? `transcription_text_${timestamp}.csv`
+                    : `transcription_timecode_${timestamp}.csv`;
                 
                 // ダウンロード実行
                 const downloadUrl = window.URL.createObjectURL(blob);
@@ -663,12 +603,20 @@
                 return;
             }
             
+            if (!roomId) {
+                alert('ルームIDが取得できません');
+                return;
+            }
+            
             try {
                 const response = await fetch('/api/clear-log', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({
+                        roomId: roomId
+                    })
                 });
                 
                 if (response.ok) {
@@ -700,8 +648,6 @@
         });
         
         // イベントリスナー設定
-        timestampToggle.addEventListener('click', toggleTimestamp);
-        
         exportTextBtn.addEventListener('click', () => exportCSV('text-only'));
         exportTimecodeBtn.addEventListener('click', () => exportCSV('with-timecode'));
         
