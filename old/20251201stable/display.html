@@ -212,6 +212,7 @@
             z-index: 3000;
             box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
             overflow-y: auto;
+            cursor: move; /* ドラッグ可能を示す */
         }
         
         .settings-panel {
@@ -229,6 +230,11 @@
             margin-bottom: 25px;
             padding-bottom: 15px;
             border-bottom: 1px solid #333;
+            cursor: grab; /* ドラッグハンドル */
+        }
+        
+        .settings-header:active {
+            cursor: grabbing;
         }
         
         .settings-title {
@@ -250,131 +256,6 @@
         
         .close-btn:hover {
             background-color: rgba(255, 255, 255, 0.1);
-        }
-        
-        /* ヘッダーコントロール */
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        /* PC用：配置切り替えボタン */
-        .position-controls {
-            display: flex;
-            gap: 5px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 4px;
-            border-radius: 6px;
-        }
-        
-        .position-btn {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 16px;
-            cursor: pointer;
-            padding: 6px 12px;
-            border-radius: 4px;
-            transition: all 0.3s;
-        }
-        
-        .position-btn:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            color: #fff;
-        }
-        
-        .position-btn.active {
-            background-color: rgba(255, 255, 255, 0.15);
-            color: #fff;
-        }
-        
-        /* PC/スマホ表示切り替え */
-        .pc-only {
-            display: block;
-        }
-        
-        .mobile-only {
-            display: none;
-        }
-        
-        /* スマホ用：簡易設定 */
-        .mobile-settings {
-            padding: 20px 0;
-        }
-        
-        .size-buttons, .theme-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .size-btn, .theme-btn {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid #333;
-            color: #ccc;
-            padding: 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-        
-        .size-btn:hover, .theme-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #555;
-        }
-        
-        .size-btn.active, .theme-btn.active {
-            background: rgba(74, 144, 226, 0.3);
-            border-color: #4a90e2;
-            color: #fff;
-        }
-        
-        .theme-btn {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .theme-preview {
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        
-        /* レスポンシブ: スマホ・タブレット */
-        @media (max-width: 768px) {
-            .settings-modal {
-                width: 100%;
-                height: auto;
-                max-height: 70vh;
-                top: auto;
-                bottom: 0;
-                left: 0 !important;
-                right: 0 !important;
-                border-radius: 20px 20px 0 0;
-                cursor: default;
-            }
-            
-            .settings-header {
-                cursor: default;
-            }
-            
-            .pc-only {
-                display: none;
-            }
-            
-            .mobile-only {
-                display: block;
-            }
         }
         
         .settings-tabs {
@@ -642,49 +523,9 @@
                         ショートカット: Ctrl+, (Windows) / Cmd+, (Mac)
                     </div>
                 </div>
-                <div class="header-controls">
-                    <!-- PC用：配置切り替えボタン -->
-                    <div class="position-controls pc-only">
-                        <button class="position-btn" data-position="left" title="左寄せ">◀</button>
-                        <button class="position-btn" data-position="center" title="中央">●</button>
-                        <button class="position-btn active" data-position="right" title="右寄せ">▶</button>
-                    </div>
-                    <button class="close-btn" id="closeBtn">×</button>
-                </div>
+                <button class="close-btn" id="closeBtn">×</button>
             </div>
             
-            <!-- スマホ用：簡易設定 -->
-            <div class="mobile-settings mobile-only">
-                <div class="setting-group">
-                    <label class="setting-label">フォントサイズ</label>
-                    <div class="size-buttons">
-                        <button class="size-btn" data-size="16">小</button>
-                        <button class="size-btn active" data-size="24">中</button>
-                        <button class="size-btn" data-size="32">大</button>
-                    </div>
-                </div>
-                
-                <div class="setting-group">
-                    <label class="setting-label">カラーテーマ</label>
-                    <div class="theme-buttons">
-                        <button class="theme-btn active" data-theme="default">
-                            <div class="theme-preview" style="background: #000; color: #fff;">Aa</div>
-                            <span>標準</span>
-                        </button>
-                        <button class="theme-btn" data-theme="high-contrast">
-                            <div class="theme-preview" style="background: #000; color: #ffff00;">Aa</div>
-                            <span>高コントラスト</span>
-                        </button>
-                        <button class="theme-btn" data-theme="soft">
-                            <div class="theme-preview" style="background: #1a1a2e; color: #eee;">Aa</div>
-                            <span>ソフト</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- PC用：詳細設定タブ -->
-            <div class="pc-settings pc-only">
             <div class="settings-tabs">
                 <button class="tab-btn active" data-tab="display">表示設定</button>
                 <button class="tab-btn" data-tab="scroll">スクロール設定</button>
@@ -876,7 +717,6 @@
                     <button class="btn btn-danger" id="resetConfigBtn">🔄 設定をリセット</button>
                 </div>
             </div>
-            </div><!-- .pc-settings -->
         </div>
     </div>
 
@@ -1240,101 +1080,99 @@
             settingsModal.style.display = 'none';
         });
         
-        // 配置切り替え機能（PC用）
-        let modalPosition = 'right'; // 'left', 'center', 'right'
+        // ドラッグ機能
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
         
+        const settingsHeader = settingsModal.querySelector('.settings-header');
+        
+        // 位置の読み込み
         function loadModalPosition() {
             try {
                 const saved = localStorage.getItem('settingsModalPosition');
                 if (saved) {
-                    modalPosition = saved;
+                    const position = JSON.parse(saved);
+                    xOffset = position.x;
+                    yOffset = position.y;
+                    setModalPosition(xOffset, yOffset);
                 } else {
-                    modalPosition = 'right';
+                    // 初期位置：画面右端
+                    const initialX = window.innerWidth - 500; // モーダル幅500px
+                    xOffset = initialX;
+                    yOffset = 0;
+                    setModalPosition(xOffset, yOffset);
                 }
-                setModalPosition(modalPosition);
             } catch (error) {
                 console.error('設定モーダル位置の読み込みエラー:', error);
             }
         }
         
+        // 位置の保存
         function saveModalPosition() {
             try {
-                localStorage.setItem('settingsModalPosition', modalPosition);
+                localStorage.setItem('settingsModalPosition', JSON.stringify({
+                    x: xOffset,
+                    y: yOffset
+                }));
             } catch (error) {
                 console.error('設定モーダル位置の保存エラー:', error);
             }
         }
         
-        function setModalPosition(position) {
-            const modal = settingsModal;
-            modal.style.left = 'auto';
-            modal.style.right = 'auto';
-            modal.style.top = '0';
-            
-            if (position === 'left') {
-                modal.style.left = '0';
-            } else if (position === 'center') {
-                modal.style.left = '50%';
-                modal.style.transform = 'translateX(-50%)';
-            } else { // right
-                modal.style.right = '0';
-                modal.style.transform = 'none';
-            }
-            
-            // ボタンのアクティブ状態を更新
-            document.querySelectorAll('.position-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.position === position);
-            });
+        // モーダルの位置を設定
+        function setModalPosition(x, y) {
+            settingsModal.style.right = 'auto';
+            settingsModal.style.top = 'auto';
+            settingsModal.style.left = x + 'px';
+            settingsModal.style.top = y + 'px';
         }
         
-        // 配置ボタンのクリックイベント
-        document.querySelectorAll('.position-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                modalPosition = btn.dataset.position;
-                setModalPosition(modalPosition);
+        settingsHeader.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+        
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            
+            if (e.target === settingsHeader || settingsHeader.contains(e.target)) {
+                // 閉じるボタンはドラッグ対象外
+                if (!e.target.closest('.close-btn')) {
+                    isDragging = true;
+                }
+            }
+        }
+        
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+                
+                xOffset = currentX;
+                yOffset = currentY;
+                
+                setModalPosition(currentX, currentY);
+            }
+        }
+        
+        function dragEnd(e) {
+            if (isDragging) {
+                initialX = currentX;
+                initialY = currentY;
+                isDragging = false;
                 saveModalPosition();
-            });
-        });
+            }
+        }
         
         // 初期位置を読み込み
         loadModalPosition();
-        
-        // スマホ用：フォントサイズボタン
-        document.querySelectorAll('.size-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const size = parseInt(btn.dataset.size);
-                settings.fontSize = size;
-                updateDisplayStyle();
-                saveSettings();
-                
-                // アクティブ状態を更新
-                document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            });
-        });
-        
-        // スマホ用：カラーテーマボタン
-        const themes = {
-            default: { fontColor: '#ffffff', backgroundColor: '#000000' },
-            'high-contrast': { fontColor: '#ffff00', backgroundColor: '#000000' },
-            soft: { fontColor: '#eeeeee', backgroundColor: '#1a1a2e' }
-        };
-        
-        document.querySelectorAll('.theme-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const theme = btn.dataset.theme;
-                const colors = themes[theme];
-                
-                settings.fontColor = colors.fontColor;
-                settings.backgroundColor = colors.backgroundColor;
-                updateDisplayStyle();
-                saveSettings();
-                
-                // アクティブ状態を更新
-                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            });
-        });
         
         // ショートカットキーで設定パネルを開閉（Ctrl+, または Cmd+,）
         document.addEventListener('keydown', (e) => {
