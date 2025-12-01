@@ -351,7 +351,6 @@
         }
         
         /* レスポンシブ: スマホ・タブレット */
-        /* レスポンシブ: スマホ・タブレット（画面幅） or mobile-modeクラス */
         @media (max-width: 768px) {
             .settings-modal {
                 width: 100%;
@@ -374,41 +373,6 @@
             }
             
             .mobile-only {
-                display: block;
-            }
-            
-            /* スマホではマスクを非表示 */
-            .top-mask {
-                display: none !important;
-            }
-        }
-        
-        /* 手動でスマホモードに設定した場合 */
-        .settings-modal.mobile-mode {
-            width: 100%;
-            height: auto;
-            max-height: 70vh;
-            top: auto;
-            bottom: 0;
-            left: 0 !important;
-            right: 0 !important;
-            border-radius: 20px 20px 0 0;
-            cursor: default;
-        }
-        
-        .settings-modal.mobile-mode .settings-header {
-            cursor: default;
-        }
-        
-        .settings-modal.mobile-mode .pc-only {
-            display: none;
-        }
-        
-        .settings-modal.mobile-mode .mobile-only {
-            display: block;
-        }
-        
-        .settings-tabs {
                 display: block;
             }
         }
@@ -877,23 +841,6 @@
                 </div>
                 
                 <div class="setting-group">
-                    <label class="setting-label">マスク色</label>
-                    <div class="setting-row">
-                        <div class="checkbox-wrapper">
-                            <input type="checkbox" class="setting-checkbox" id="useBgColorForMaskCheck" checked>
-                            <label for="useBgColorForMaskCheck">背景色と同色</label>
-                        </div>
-                    </div>
-                    <div class="setting-row" id="maskColorControls">
-                        <input type="color" class="color-input" id="maskColorPicker" value="#000000">
-                        <input type="text" class="setting-input" id="maskColorInput" value="#000000" style="width: 100px;">
-                    </div>
-                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
-                        ※ 表示エリア上部のマスク（字幕を隠す部分）の色を設定
-                    </div>
-                </div>
-                
-                <div class="setting-group">
                     <label class="setting-label">全画面表示</label>
                     <div class="setting-row">
                         <button id="toggleFullscreenBtn" class="btn btn-primary" style="flex: 1;">
@@ -1064,22 +1011,6 @@
             <!-- 設定管理タブ -->
             <div class="tab-content" id="configTab">
                 <div class="setting-group">
-                    <label class="setting-label">表示モード</label>
-                    <div class="setting-row">
-                        <select class="setting-select" id="displayModeSelect">
-                            <option value="auto">自動（タッチデバイス判定）</option>
-                            <option value="pc">PC用設定を使用</option>
-                            <option value="mobile">スマホ用設定を使用</option>
-                        </select>
-                    </div>
-                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
-                        ※ 自動: タッチ操作可能なデバイスでスマホ用表示<br>
-                        ※ PC: 画面幅に関わらず詳細設定を使用<br>
-                        ※ スマホ: 画面幅に関わらず簡易設定を使用
-                    </div>
-                </div>
-                
-                <div class="setting-group">
                     <label class="setting-label">デバッグ情報</label>
                     <div class="setting-row">
                         <div class="checkbox-wrapper">
@@ -1137,15 +1068,12 @@
         
         // 設定オブジェクト
         const settings = {
-            displayMode: 'auto',  // 'auto', 'pc', 'mobile'
             fontSize: 20,
             lineHeight: 1.6,
             fontFamily: 'system',
             fontBold: false,
             fontColor: '#ffffff',
             backgroundColor: '#000000',
-            maskColor: '#000000',  // マスク色
-            useBgColorForMask: true,  // 背景色をマスク色として使用
             enableCharsPerLine: true,  // 1行文字数制限を有効にするか
             maxCharsPerLine: 30,
             visibleHeightPixels: 300,  // 表示エリアの高さ（ピクセル）
@@ -1164,21 +1092,6 @@
         
         // デフォルト設定
         const defaultSettings = JSON.parse(JSON.stringify(settings)); // ディープコピー
-        
-        // 表示モード判定関数
-        function isMobileUI() {
-            if (settings.displayMode === 'pc') {
-                return false;  // 強制的にPC用
-            } else if (settings.displayMode === 'mobile') {
-                return true;   // 強制的にスマホ用
-            } else {
-                // auto: タッチデバイス判定
-                const isTouchDevice = ('ontouchstart' in window) || 
-                                      (navigator.maxTouchPoints > 0) ||
-                                      (navigator.msMaxTouchPoints > 0);
-                return isTouchDevice;
-            }
-        }
         
         // 設定の読み込み
         function loadSettings() {
@@ -1218,19 +1131,6 @@
             document.getElementById('bgColorPicker').value = settings.backgroundColor;
             document.getElementById('bgColorInput').value = settings.backgroundColor;
             
-            // マスク色設定
-            const useBgColorForMaskCheck = document.getElementById('useBgColorForMaskCheck');
-            const maskColorControls = document.getElementById('maskColorControls');
-            const maskColorPicker = document.getElementById('maskColorPicker');
-            const maskColorInput = document.getElementById('maskColorInput');
-            
-            useBgColorForMaskCheck.checked = settings.useBgColorForMask !== false; // デフォルトtrue
-            maskColorPicker.value = settings.maskColor || settings.backgroundColor;
-            maskColorInput.value = settings.maskColor || settings.backgroundColor;
-            maskColorPicker.disabled = useBgColorForMaskCheck.checked;
-            maskColorInput.disabled = useBgColorForMaskCheck.checked;
-            maskColorControls.style.opacity = useBgColorForMaskCheck.checked ? '0.5' : '1';
-            
             // スクロール設定
             document.getElementById('scrollSpeedSlider').value = settings.animationDuration;
             document.getElementById('scrollSpeedInput').value = settings.animationDuration;
@@ -1252,12 +1152,6 @@
             
             // 全角変換設定
             document.getElementById('fullWidthCheck').checked = settings.fullWidthMode;
-            
-            // 表示モード設定
-            const displayModeSelect = document.getElementById('displayModeSelect');
-            if (displayModeSelect) {
-                displayModeSelect.value = settings.displayMode || 'auto';
-            }
             
             // デバッグ情報表示設定
             document.getElementById('showDebugInfoCheck').checked = settings.showDebugInfo;
@@ -1314,25 +1208,6 @@
             courier: '"Courier New", "Courier", monospace'
         };
         
-        // 表示モードを適用（PC用 vs スマホ用）
-        function applyDisplayMode() {
-            const isMobile = isMobileUI();
-            const settingsModal = document.getElementById('settingsModal');
-            const topMask = document.getElementById('topMask');
-            
-            if (isMobile) {
-                // スマホ用表示
-                settingsModal.classList.add('mobile-mode');
-                if (topMask) topMask.style.display = 'none';
-            } else {
-                // PC用表示
-                settingsModal.classList.remove('mobile-mode');
-                if (topMask) topMask.style.display = '';
-            }
-            
-            console.log('表示モード適用:', isMobile ? 'スマホ用' : 'PC用');
-        }
-        
         // 表示スタイルを更新
         function updateDisplayStyle() {
             // フォント設定
@@ -1345,13 +1220,7 @@
             // 背景色
             document.body.style.backgroundColor = settings.backgroundColor;
             textDisplayArea.style.backgroundColor = settings.backgroundColor;
-            
-            // マスク色（背景色と同色か、個別設定か）
-            if (settings.useBgColorForMask) {
-                topMask.style.backgroundColor = settings.backgroundColor;
-            } else {
-                topMask.style.backgroundColor = settings.maskColor;
-            }
+            topMask.style.backgroundColor = settings.backgroundColor;
             
             // 余白設定
             textDisplayArea.style.padding = `${settings.paddingPixels}px`;
@@ -1508,31 +1377,6 @@
             
             syncColorInputs('fontColorPicker', 'fontColorInput', 'fontColor');
             syncColorInputs('bgColorPicker', 'bgColorInput', 'backgroundColor');
-            syncColorInputs('maskColorPicker', 'maskColorInput', 'maskColor');
-            
-            // マスク色の「背景色と同色」チェックボックス
-            const useBgColorForMaskCheck = document.getElementById('useBgColorForMaskCheck');
-            const maskColorControls = document.getElementById('maskColorControls');
-            
-            useBgColorForMaskCheck.addEventListener('change', (e) => {
-                settings.useBgColorForMask = e.target.checked;
-                
-                // カラーピッカーの有効/無効を切り替え
-                const maskColorPicker = document.getElementById('maskColorPicker');
-                const maskColorInput = document.getElementById('maskColorInput');
-                maskColorPicker.disabled = e.target.checked;
-                maskColorInput.disabled = e.target.checked;
-                
-                // スタイル更新
-                if (e.target.checked) {
-                    maskColorControls.style.opacity = '0.5';
-                } else {
-                    maskColorControls.style.opacity = '1';
-                }
-                
-                updateDisplayStyle();
-                saveSettings();
-            });
             
             // 全角変換モード設定
             document.getElementById('fullWidthCheck').addEventListener('change', (e) => {
@@ -1543,14 +1387,6 @@
                 if (textLineArray.length > 0) {
                     updateDisplay();
                 }
-            });
-            
-            // 表示モード選択
-            document.getElementById('displayModeSelect').addEventListener('change', (e) => {
-                settings.displayMode = e.target.value;
-                saveSettings();
-                applyDisplayMode();
-                console.log('表示モード変更:', settings.displayMode);
             });
             
             // デバッグ情報表示の切り替え
@@ -2030,8 +1866,8 @@
             const lines = text.split('\n');
             const resultLines = [];
             
-            // スマホ・タブレット判定（タッチデバイス or 手動設定）
-            const isMobile = isMobileUI();
+            // スマホ・タブレット判定
+            const isMobile = window.innerWidth <= 768;
             
             for (const line of lines) {
                 if (line.length === 0) {
@@ -2455,9 +2291,6 @@
             
             // UIに設定を反映
             updateSettingsUI();
-            
-            // 表示モードを適用
-            applyDisplayMode();
             
             // 表示スタイルを適用
             updateDisplayStyle();

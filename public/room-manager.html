@@ -258,10 +258,11 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-top: 15px;
-            padding: 15px;
+            margin-top: 20px;
+            padding: 20px;
             background-color: #f8f9fa;
             border-radius: 8px;
+            border-top: 2px solid #dee2e6;
         }
         
         .qr-code {
@@ -269,6 +270,7 @@
             padding: 10px;
             border-radius: 8px;
             border: 1px solid #dee2e6;
+            flex-shrink: 0;
         }
         
         .qr-info {
@@ -276,14 +278,15 @@
         }
         
         .qr-label {
-            font-size: 13px;
-            color: #666;
+            font-size: 14px;
+            font-weight: bold;
+            color: #495057;
             margin-bottom: 5px;
         }
         
         .qr-description {
             font-size: 12px;
-            color: #888;
+            color: #6c757d;
             line-height: 1.4;
         }
     </style>
@@ -492,13 +495,6 @@ ${baseUrl}/admin?room=${roomId}
                                 <a href="${baseUrl}/display?room=${room.id}" target="_blank">画面を開く</a>
                                 <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/display?room=${room.id}')">URL コピー</button>
                             </div>
-                            <div class="qr-code-container">
-                                <div class="qr-code" id="qr-${room.id}"></div>
-                                <div class="qr-info">
-                                    <div class="qr-label">📱 QRコード（表示用画面）</div>
-                                    <div class="qr-description">スマホ・タブレットでスキャンして表示画面を開けます</div>
-                                </div>
-                            </div>
                             <div class="url-line">
                                 <span class="url-label">ログ:</span>
                                 <a href="${baseUrl}/logs?room=${room.id}" target="_blank">画面を開く</a>
@@ -508,6 +504,15 @@ ${baseUrl}/admin?room=${roomId}
                                 <span class="url-label">管理:</span>
                                 <a href="${baseUrl}/admin?room=${room.id}" target="_blank">画面を開く</a>
                                 <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/admin?room=${room.id}')">URL コピー</button>
+                            </div>
+                            
+                            <!-- QRコードセクション -->
+                            <div class="qr-code-container">
+                                <div class="qr-code" id="qr-${room.id}"></div>
+                                <div class="qr-info">
+                                    <div class="qr-label">📱 QRコード（表示用画面）</div>
+                                    <div class="qr-description">スマホ・タブレットでスキャンして表示画面を開けます</div>
+                                </div>
                             </div>
                         </div>
                     `;
