@@ -880,11 +880,20 @@
                 </div>
                 
                 <div class="setting-group">
-                    <label class="setting-label">1行文字数</label>
+                    <label class="setting-label">1行文字数制限</label>
                     <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="enableCharsPerLineCheck" checked>
+                            <label for="enableCharsPerLineCheck">1行文字数を制限する</label>
+                        </div>
+                    </div>
+                    <div class="setting-row" id="charsPerLineControls">
                         <input type="range" class="setting-slider" id="charsPerLineSlider" min="10" max="80" value="30">
                         <input type="number" class="setting-input" id="charsPerLineInput" min="1" max="99" value="30">
                         <span class="setting-unit">文字</span>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ OFFの場合、画面幅に応じて自動折り返し（レスポンシブ）
                     </div>
                 </div>
                 
@@ -1065,6 +1074,7 @@
             fontBold: false,
             fontColor: '#ffffff',
             backgroundColor: '#000000',
+            enableCharsPerLine: true,  // 1行文字数制限を有効にするか
             maxCharsPerLine: 30,
             visibleHeightPixels: 300,  // 表示エリアの高さ（ピクセル）
             animationDuration: 0.8,
@@ -1126,8 +1136,19 @@
             document.getElementById('scrollSpeedInput').value = settings.animationDuration;
             document.getElementById('visibleHeightSlider').value = settings.visibleHeightPixels;
             document.getElementById('visibleHeightInput').value = settings.visibleHeightPixels;
-            document.getElementById('charsPerLineSlider').value = settings.maxCharsPerLine;
-            document.getElementById('charsPerLineInput').value = settings.maxCharsPerLine;
+            
+            // 1行文字数制限
+            const enableCharsPerLineCheck = document.getElementById('enableCharsPerLineCheck');
+            const charsPerLineControls = document.getElementById('charsPerLineControls');
+            const charsPerLineSlider = document.getElementById('charsPerLineSlider');
+            const charsPerLineInput = document.getElementById('charsPerLineInput');
+            
+            enableCharsPerLineCheck.checked = settings.enableCharsPerLine !== false; // デフォルトtrue
+            charsPerLineSlider.value = settings.maxCharsPerLine;
+            charsPerLineInput.value = settings.maxCharsPerLine;
+            charsPerLineSlider.disabled = !enableCharsPerLineCheck.checked;
+            charsPerLineInput.disabled = !enableCharsPerLineCheck.checked;
+            charsPerLineControls.style.opacity = enableCharsPerLineCheck.checked ? '1' : '0.5';
             
             // 全角変換設定
             document.getElementById('fullWidthCheck').checked = settings.fullWidthMode;
@@ -1302,6 +1323,30 @@
             // ボールド設定
             document.getElementById('fontBoldCheck').addEventListener('change', (e) => {
                 settings.fontBold = e.target.checked;
+                updateDisplayStyle();
+                saveSettings();
+            });
+            
+            // 1行文字数制限のON/OFF
+            const enableCharsPerLineCheck = document.getElementById('enableCharsPerLineCheck');
+            const charsPerLineControls = document.getElementById('charsPerLineControls');
+            
+            enableCharsPerLineCheck.addEventListener('change', (e) => {
+                settings.enableCharsPerLine = e.target.checked;
+                
+                // スライダーの有効/無効を切り替え
+                const slider = document.getElementById('charsPerLineSlider');
+                const input = document.getElementById('charsPerLineInput');
+                slider.disabled = !e.target.checked;
+                input.disabled = !e.target.checked;
+                
+                // スタイル更新
+                if (e.target.checked) {
+                    charsPerLineControls.style.opacity = '1';
+                } else {
+                    charsPerLineControls.style.opacity = '0.5';
+                }
+                
                 updateDisplayStyle();
                 saveSettings();
             });
@@ -1821,15 +1866,23 @@
             const lines = text.split('\n');
             const resultLines = [];
             
+            // スマホ・タブレット判定
+            const isMobile = window.innerWidth <= 768;
+            
             for (const line of lines) {
                 if (line.length === 0) {
                     resultLines.push('');
                     continue;
                 }
                 
-                // 改行処理を実行
-                const brokenLines = smartLineBreak(line, settings.maxCharsPerLine);
-                resultLines.push(...brokenLines);
+                // スマホの場合、または1行文字数制限がOFFの場合は改行処理をスキップ（レスポンシブ）
+                if (isMobile || !settings.enableCharsPerLine) {
+                    resultLines.push(line);
+                } else {
+                    // 改行処理を実行
+                    const brokenLines = smartLineBreak(line, settings.maxCharsPerLine);
+                    resultLines.push(...brokenLines);
+                }
             }
             
             return resultLines;
