@@ -2386,15 +2386,20 @@
             // 既存テキストと結合
             let fullText = '';
             if (textLineArray.length > 0) {
-                fullText = textLineArray.join('\n') + ' ' + processedText;
+                // 最後の行と新テキストを直接連結
+                const lastLine = textLineArray[textLineArray.length - 1];
+                const previousLines = textLineArray.slice(0, -1);
+                
+                if (previousLines.length > 0) {
+                    fullText = previousLines.join('\n') + '\n' + lastLine + processedText;
+                } else {
+                    fullText = lastLine + processedText;
+                }
             } else {
                 fullText = processedText;
             }
             
             console.log('結合後fullText:', JSON.stringify(fullText.substring(0, 100)));
-            
-            // 音声認識由来の不適切なスペースを除去
-            fullText = cleanupSpeechText(fullText);
             
             // 全角変換モードが有効な場合
             if (settings.fullWidthMode) {
