@@ -478,11 +478,12 @@
             updateLogStats();
             renderMessage(message, messages.length);
             
-            // 新しいメッセージが追加されたら必ず最下部にスクロール
-            setTimeout(() => {
-                scrollToBottom();
-                userScrolled = false; // 自動スクロールなのでフラグをリセット
-            }, 100);
+            // 自動スクロールがONの場合のみ最下部にスクロール
+            if (autoScroll) {
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 100);
+            }
             
             console.log('新しいメッセージを追加:', message);
         }
@@ -778,8 +779,8 @@
         
         autoScrollBtn.addEventListener('click', () => {
             scrollToBottom();
-            userScrolled = false;
-            console.log('手動で最下部にスクロール');
+            autoScroll = true; // 自動スクロールを再開
+            console.log('自動スクロールボタンをクリック - 自動スクロール再開');
         });
         
         // ウィンドウが閉じられる前の処理
