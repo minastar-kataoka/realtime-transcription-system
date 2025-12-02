@@ -269,19 +269,19 @@
             border-left: 4px solid #ffc107;  /* ベージュ・左のみ */
         }
         
-        /* 送信権表示時（4方向全て枠線・赤色） */
+        /* 送信権表示時（4方向全て枠線） */
         .tier-previous.has-sender-permission {
-            border: 4px solid #dc3545 !important;       /* 赤色・4方向全て */
+            border: 4px solid #17a2b8 !important;       /* 水色・4方向全て */
             border-left-width: 4px !important;          /* 左側も4px */
         }
         
         .tier-current.has-sender-permission {
-            border: 4px solid #dc3545 !important;       /* 赤色・4方向全て */
+            border: 4px solid #28a745 !important;       /* 緑色・4方向全て */
             border-left-width: 4px !important;          /* 左側も4px */
         }
         
         .tier-next.has-sender-permission {
-            border: 4px solid #dc3545 !important;       /* 赤色・4方向全て */
+            border: 4px solid #ffc107 !important;       /* ベージュ・4方向全て */
             border-left-width: 4px !important;          /* 左側も4px */
         }
         
@@ -647,6 +647,9 @@
                     
                     <div class="tier-input-area">
                         <textarea id="textInput" placeholder="ここに文字起こし内容を入力してください..."></textarea>
+                        <div class="tier-input-controls">
+                            <span class="keyboard-hint">Ctrl+Enter または F12 で送信</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -1787,16 +1790,6 @@
                 loadCharGuideSettings();
             }, 50);
         }
-        
-        // ウィンドウを閉じる際の確認ダイアログ
-        window.addEventListener('beforeunload', (event) => {
-            // 参加済みの場合のみ確認ダイアログを表示
-            if (isJoined) {
-                event.preventDefault();
-                event.returnValue = ''; // Chrome では空文字列が必要
-                return ''; // 他のブラウザ用
-            }
-        });
     </script>
 </body>
 </html>
