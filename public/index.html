@@ -376,10 +376,10 @@
         }
         
         .tier-input-area textarea.has-permission {
-            border-color: #28a745;
+            border-color: #dc3545;
             border-width: 3px;
-            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
-            background-color: #f8fff8;
+            box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+            background-color: #fff8f8;
         }
         
         .tier-input-area textarea.has-permission::placeholder {
@@ -647,9 +647,6 @@
                     
                     <div class="tier-input-area">
                         <textarea id="textInput" placeholder="ここに文字起こし内容を入力してください..."></textarea>
-                        <div class="tier-input-controls">
-                            <span class="keyboard-hint">Ctrl+Enter または F12 で送信</span>
-                        </div>
                     </div>
                 </div>
                 
@@ -825,6 +822,24 @@
             statusText.textContent = 'サーバーに接続されました';
             
             console.log('Socket.io接続成功:', socket.id);
+            
+            // ポップアップで開き直した場合の自動参加処理
+            if (sessionStorage.getItem('shouldAutoJoin') === 'true') {
+                const savedName = sessionStorage.getItem('participantName');
+                if (savedName) {
+                    sessionStorage.removeItem('shouldAutoJoin');
+                    sessionStorage.removeItem('participantName');
+                    
+                    nameInput.value = savedName;
+                    joinBtn.disabled = true;
+                    joinBtn.textContent = '参加中...';
+                    
+                    socket.emit('join', { 
+                        name: savedName,
+                        roomId: currentRoomId 
+                    });
+                }
+            }
         });
         
         socket.on('disconnect', () => {
@@ -1727,6 +1742,24 @@
                 return;
             }
             
+            // 現在のウィンドウがポップアップでない場合、ポップアップとして開き直す
+            if (!window.opener && window.name !== 'OperatorPopup') {
+                const currentUrl = window.location.href;
+                const features = 'menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes,width=1200,height=800';
+                const popup = window.open(currentUrl, 'OperatorPopup', features);
+                
+                if (popup) {
+                    // ポップアップが開けた場合、名前を保存して現在のウィンドウを閉じる
+                    sessionStorage.setItem('participantName', name);
+                    sessionStorage.setItem('shouldAutoJoin', 'true');
+                    window.close();
+                    return;
+                } else {
+                    // ポップアップブロックされた場合は通常通り参加
+                    alert('ポップアップがブロックされました。ブラウザの設定を確認してください。\n通常のウィンドウで続行します。');
+                }
+            }
+            
             joinBtn.disabled = true;
             joinBtn.textContent = '参加中...';
             
@@ -1790,6 +1823,28 @@
                 loadCharGuideSettings();
             }, 50);
         }
+        
+        // ウィンドウを閉じる際の確認
+        window.addEventListener('beforeunload', (event) => {
+            event.preventDefault();
+            event.returnValue = ''; // Chrome では空文字列が必要
+            return ''; // 他のブラウザ用
+        });
+        
+        // 初回アクセス時にフルスクリーン提案（1回のみ）
+        window.addEventListener('load', () => {
+            const hasSeenFullscreenHint = sessionStorage.getItem('hasSeenFullscreenHint');
+            if (!hasSeenFullscreenHint) {
+                setTimeout(() => {
+                    if (confirm('オペレーター画面を全画面表示にしますか？\n（F11キーでいつでも全画面モードの切り替えができます）')) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log('フルスクリーン要求が拒否されました:', err);
+                        });
+                    }
+                    sessionStorage.setItem('hasSeenFullscreenHint', 'true');
+                }, 1000);
+            }
+        });
     </script>
 </body>
 </html>
