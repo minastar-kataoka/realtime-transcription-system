@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>送信済みメッセージログ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #dc3545;
+        }
+        
+        .status-indicator.connected {
+            background-color: #28a745;
+        }
+        
+        .log-stats {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .btn:disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .timestamp-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .toggle-switch.active {
+            background-color: #007bff;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+        
+        .messages-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+        
+        .messages-list {
+            padding: 0;
+        }
+        
+        .message-item {
+            display: flex;
+            gap: 10px;
+            padding: 8px 12px;
+            margin-bottom: 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        /* 送信者別の背景色 - 入力画面と重複しない強めの色 */
+        .message-item[data-sender="prev"] {
+            background-color: #ffccbc;  /* オレンジ系 - 1番目の参加者 */
+        }
+        
+        .message-item[data-sender="current"] {
+            background-color: #e1bee7;  /* 紫系 - 2番目の参加者 */
+        }
+        
+        .message-item[data-sender="next"] {
+            background-color: #c5e1a5;  /* ライムグリーン系 - 3番目の参加者 */
+        }
+        
+        .message-item:hover {
+            opacity: 0.9;
+        }
+        
+        .message-header {
+            display: none;  /* ログ番号と送信者を非表示 */
+        }
+        
+        .message-sender {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .message-timestamp {
+            font-family: monospace;
+            transition: opacity 0.3s;
+        }
+        
+        .message-timestamp.hidden {
+            opacity: 0;
+        }
+        
+        .message-text {
+            flex: 1;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .message-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        
+        .btn-copy {
+            padding: 4px 8px;
+            font-size: 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-copy:hover {
+            background-color: #218838;
+        }
+        
+        .btn-copy-from {
+            padding: 4px 8px;
+            font-size: 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            background-color: #17a2b8;
+            color: white;
+            white-space: nowrap;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-copy-from:hover {
+            background-color: #138496;
+        }
+        
+        .no-messages {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 50px 20px;
+            font-size: 18px;
+        }
+        
+        .message-number {
+            background-color: #007bff;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-right: 8px;
+        }
+        
+        .auto-scroll-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            z-index: 1000;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .auto-scroll-control:hover:not(.disabled) {
+            background-color: #0056b3;
+            transform: scale(1.1);
+        }
+        
+        .auto-scroll-control.disabled {
+            background-color: #28a745;
+            cursor: default;
+            transform: none;
+            opacity: 0.7;
+        }
+        
+        /* スクロールバーのスタイル */
+        .messages-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .messages-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .messages-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        .messages-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <!-- <h1>📋 送信済みメッセージログ</h1> -->
+        <div class="status-bar">
+            <div class="connection-status">
+                <div id="statusIndicator" class="status-indicator"></div>
+                <span id="connectionText">接続中...</span>
+            </div>
+            <div class="log-stats" id="logStats">ログ: 0件</div>
+        </div>
+        <div class="controls">
+            <button id="exportTextBtn" class="btn btn-primary">📄 ログ出力</button>
+            <button id="exportTimecodeBtn" class="btn btn-primary">⏰ ログ出力(tc付き)</button>
+            <button id="refreshBtn" class="btn btn-secondary">🔄 更新</button>
+            <button id="clearLogBtn" class="btn btn-danger">🗑️ ログクリア</button>
+        </div>
+    </div>
+    
+    <div class="messages-container" id="messagesContainer">
+        <div class="messages-list" id="messagesList">
+            <div class="no-messages" id="noMessages">
+                📭 まだメッセージがありません
+            </div>
+        </div>
+    </div>
+    
+    <button class="auto-scroll-control disabled" id="autoScrollBtn" title="最新メッセージまでスクロール">
+        ↓
+    </button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        console.log('=== ログ表示ウィンドウ開始 ===');
+        
+        // DOM要素の取得
+        const statusIndicator = document.getElementById('statusIndicator');
+        const connectionText = document.getElementById('connectionText');
+        const logStats = document.getElementById('logStats');
+        const messagesList = document.getElementById('messagesList');
+        const noMessages = document.getElementById('noMessages');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const autoScrollBtn = document.getElementById('autoScrollBtn');
+        
+        // ボタン要素
+        const exportTextBtn = document.getElementById('exportTextBtn');
+        const exportTimecodeBtn = document.getElementById('exportTimecodeBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        
+        // 状態管理
+        let messages = [];
+        let autoScroll = true; // デフォルトで自動スクロールON
+        let messageCount = 0;
+        let userScrolled = false; // ユーザーが手動でスクロールしたかを追跡
+        
+        // URLパラメータからroomIdを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        
+        if (!roomId) {
+            alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+            window.location.href = '/room-manager';
+        }
+        
+        // Socket.io接続
+        const socket = io();
+        
+        // 参加者情報を格納
+        let participants = [];
+        
+        socket.on('connect', () => {
+            statusIndicator.className = 'status-indicator connected';
+            connectionText.textContent = '接続済み';
+            console.log('Socket.io接続成功:', socket.id);
+            
+            // ログ画面としてルームに参加
+            if (roomId) {
+                socket.emit('join_logs', { roomId: roomId });
+                console.log('join_logsイベント送信:', roomId);
+            }
+            
+            // 接続後に既存ログを読み込み
+            loadExistingLogs();
+        });
+        
+        socket.on('disconnect', () => {
+            statusIndicator.className = 'status-indicator';
+            connectionText.textContent = '切断';
+            console.log('Socket.io接続切断');
+        });
+        
+        socket.on('connect_error', (error) => {
+            statusIndicator.className = 'status-indicator';
+            connectionText.textContent = '接続エラー';
+            console.error('Socket.io接続エラー:', error);
+        });
+        
+        // 参加者情報の更新
+        socket.on('participants_updated', (data) => {
+            participants = data.participants || [];
+            console.log('参加者情報更新:', participants);
+            // 既存のメッセージを再描画（背景色を更新）
+            renderAllMessages();
+        });
+        
+        // リアルタイムメッセージ受信
+        socket.on('text_received', (message) => {
+            console.log('新しいメッセージ受信:', message);
+            addMessageToLog(message);
+        });
+        
+        // 既存ログの読み込み
+        async function loadExistingLogs() {
+            try {
+                console.log('既存ログを読み込み中...');
+                const response = await fetch('/api/messages');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('既存ログ取得成功:', data.messages.length, '件');
+                    
+                    // 既存のメッセージ配列をクリアしてから設定
+                    messages = [];
+                    messages = data.messages || [];
+                    messageCount = messages.length;
+                    
+                    updateLogStats();
+                    renderAllMessages();
+                    
+                    console.log('既存ログ読み込み完了:', messages.length, '件');
+                } else {
+                    console.error('既存ログ取得失敗:', response.status);
+                }
+            } catch (error) {
+                console.error('既存ログ読み込みエラー:', error);
+            }
+        }
+        
+        // メッセージをログに追加
+        function addMessageToLog(message) {
+            // 重複チェック: 同じIDまたはタイムスタンプのメッセージがすでに存在するかチェック
+            const isDuplicate = messages.some(existingMessage => 
+                existingMessage.id === message.id || 
+                (existingMessage.timestamp === message.timestamp && 
+                 existingMessage.sender === message.sender && 
+                 existingMessage.text === message.text)
+            );
+            
+            if (isDuplicate) {
+                console.log('重複メッセージを検出、スキップ:', message);
+                return;
+            }
+            
+            messages.push(message);
+            messageCount++;
+            
+            updateLogStats();
+            renderMessage(message, messages.length);
+            
+            // 新しいメッセージが追加されたら必ず最下部にスクロール
+            setTimeout(() => {
+                scrollToBottom();
+                userScrolled = false; // 自動スクロールなのでフラグをリセット
+            }, 100);
+            
+            console.log('新しいメッセージを追加:', message);
+        }
+        
+        // すべてのメッセージを再描画
+        function renderAllMessages() {
+            if (messages.length === 0) {
+                noMessages.style.display = 'block';
+                return;
+            }
+            
+            noMessages.style.display = 'none';
+            messagesList.innerHTML = '';
+            
+            messages.forEach((message, index) => {
+                renderMessage(message, index + 1);
+            });
+            
+            // 初期表示時は必ず最下部にスクロール
+            setTimeout(() => {
+                scrollToBottom();
+                userScrolled = false;
+            }, 200);
+        }
+        
+        // 単一メッセージを描画
+        function renderMessage(message, messageNumber) {
+            noMessages.style.display = 'none';
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message-item';
+            
+            // 送信者IDから順番を判定
+            const senderType = getSenderType(message.senderId);
+            messageElement.setAttribute('data-sender', senderType);
+            
+            console.log('送信者:', message.sender, 'ID:', message.senderId, '→', senderType);
+            
+            const timestamp = new Date(message.timestamp);
+            const timeString = timestamp.toLocaleTimeString('ja-JP');
+            const dateString = timestamp.toLocaleDateString('ja-JP');
+            
+            messageElement.innerHTML = `
+                <div class="message-header">
+                    <div>
+                        <span class="message-number">#${messageNumber}</span>
+                        <span class="message-sender">${message.sender}</span>
+                    </div>
+                    <div class="message-timestamp">
+                        ${dateString} ${timeString}
+                    </div>
+                </div>
+                <div class="message-text">${message.text}</div>
+                <div class="message-actions">
+                    <button class="btn-copy" onclick="copyMessage(${messageNumber - 1}, event)">コピー</button>
+                    <button class="btn-copy-from" onclick="copyFromMessage(${messageNumber - 1}, event)">↓コピー</button>
+                </div>
+            `;
+            
+            messagesList.appendChild(messageElement);
+        }
+        
+        // 送信者IDから順番タイプを判定
+        function getSenderType(senderId) {
+            if (!senderId || participants.length === 0) {
+                return 'current'; // デフォルト
+            }
+            
+            // 参加者リストから送信者のインデックスを取得
+            const senderIndex = participants.findIndex(p => p.id === senderId);
+            
+            if (senderIndex === -1) {
+                console.log('送信者が参加者リストに見つかりません:', senderId);
+                return 'current';
+            }
+            
+            // インデックスに応じて色を決定（0=prev, 1=current, 2=next, ...）
+            const colorIndex = senderIndex % 3;
+            
+            if (colorIndex === 0) {
+                return 'prev';    // 水色
+            } else if (colorIndex === 1) {
+                return 'current'; // 緑
+            } else {
+                return 'next';    // 黄色
+            }
+        }
+        
+        // 個別メッセージをコピー
+        function copyMessage(index, event) {
+            if (index < 0 || index >= messages.length) {
+                console.error('メッセージが見つかりません:', index);
+                return;
+            }
+            
+            const message = messages[index];
+            const text = message.text;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                console.log('メッセージをコピーしました:', text);
+                // 一時的なフィードバック表示
+                const btn = event.target;
+                const originalText = btn.textContent;
+                const originalBg = btn.style.backgroundColor;
+                btn.textContent = '✓';
+                btn.style.backgroundColor = '#20c997';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = originalBg;
+                }, 1000);
+            }).catch(err => {
+                console.error('コピー失敗:', err);
+                // エラー時のフィードバック
+                const btn = event.target;
+                const originalText = btn.textContent;
+                const originalBg = btn.style.backgroundColor;
+                btn.textContent = '✗';
+                btn.style.backgroundColor = '#dc3545';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = originalBg;
+                }, 1000);
+            });
+        }
+        
+        // 該当メッセージから最後までをコピー
+        function copyFromMessage(index, event) {
+            if (index < 0 || index >= messages.length) {
+                console.error('メッセージが見つかりません:', index);
+                return;
+            }
+            
+            const messagesToCopy = messages.slice(index);
+            const text = messagesToCopy.map(m => m.text).join('\n');
+            
+            navigator.clipboard.writeText(text).then(() => {
+                console.log(`${messagesToCopy.length}件のメッセージをコピーしました`);
+                // 一時的なフィードバック表示
+                const btn = event.target;
+                const originalText = btn.textContent;
+                const originalBg = btn.style.backgroundColor;
+                btn.textContent = '✓';
+                btn.style.backgroundColor = '#20c997';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = originalBg;
+                }, 1000);
+            }).catch(err => {
+                console.error('コピー失敗:', err);
+                // エラー時のフィードバック
+                const btn = event.target;
+                const originalText = btn.textContent;
+                const originalBg = btn.style.backgroundColor;
+                btn.textContent = '✗';
+                btn.style.backgroundColor = '#dc3545';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.backgroundColor = originalBg;
+                }, 1000);
+            });
+        }
+        
+        // ログ統計を更新
+        function updateLogStats() {
+            logStats.textContent = `ログ: ${messageCount}件`;
+            
+            // ボタンの有効/無効を切り替え
+            const hasMessages = messageCount > 0;
+            exportTextBtn.disabled = !hasMessages;
+            exportTimecodeBtn.disabled = !hasMessages;
+            clearLogBtn.disabled = !hasMessages;
+        }
+        
+        // 最下部にスクロール
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // CSVエクスポート
+        async function exportCSV(type) {
+            if (messageCount === 0) {
+                alert('エクスポートするデータがありません');
+                return;
+            }
+            
+            if (!roomId) {
+                alert('ルームIDが取得できません');
+                return;
+            }
+            
+            try {
+                const url = `/api/export/${type}?roomId=${roomId}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const blob = await response.blob();
+                
+                // ファイル名を生成
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                const filename = type === 'text-only' 
+                    ? `transcription_text_${timestamp}.txt`
+                    : `transcription_timecode_${timestamp}.txt`;
+                
+                // ダウンロード実行
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                link.style.display = 'none';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                window.URL.revokeObjectURL(downloadUrl);
+                
+                console.log(`エクスポート完了: ${filename}`);
+                
+            } catch (error) {
+                console.error('エクスポートエラー:', error);
+                alert(`エクスポートに失敗しました: ${error.message}`);
+            }
+        }
+        
+        // ログクリア
+        async function clearAllLogs() {
+            if (messageCount === 0) {
+                alert('クリアするログがありません');
+                return;
+            }
+            
+            if (!confirm('すべてのログデータを削除しますか？この操作は元に戻せません。')) {
+                return;
+            }
+            
+            if (!roomId) {
+                alert('ルームIDが取得できません');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/clear-log', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        roomId: roomId
+                    })
+                });
+                
+                if (response.ok) {
+                    // ローカルデータもクリア
+                    messages = [];
+                    messageCount = 0;
+                    messagesList.innerHTML = '';
+                    noMessages.style.display = 'block';
+                    updateLogStats();
+                    
+                    alert('ログをクリアしました');
+                    console.log('ログクリア完了');
+                } else {
+                    throw new Error('ログクリアに失敗しました');
+                }
+            } catch (error) {
+                console.error('ログクリアエラー:', error);
+                alert('ログクリアに失敗しました');
+            }
+        }
+        
+        // スクロール監視（自動スクロール制御）
+        messagesContainer.addEventListener('scroll', () => {
+            const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
+            const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+            
+            autoScroll = isAtBottom;
+            autoScrollBtn.classList.toggle('disabled', isAtBottom);
+        });
+        
+        // イベントリスナー設定
+        exportTextBtn.addEventListener('click', () => exportCSV('text-only'));
+        exportTimecodeBtn.addEventListener('click', () => exportCSV('with-timecode'));
+        
+        refreshBtn.addEventListener('click', () => {
+            console.log('ログ更新ボタンがクリックされました');
+            loadExistingLogs();
+        });
+        
+        clearLogBtn.addEventListener('click', clearAllLogs);
+        
+        autoScrollBtn.addEventListener('click', () => {
+            scrollToBottom();
+            userScrolled = false;
+            console.log('手動で最下部にスクロール');
+        });
+        
+        // ウィンドウが閉じられる前の処理
+        window.addEventListener('beforeunload', () => {
+            socket.disconnect();
+        });
+        
+        // 親ウィンドウから呼び出される関数をグローバルに設定
+        window.addMessageToLog = addMessageToLog;
+        window.clearAllLogs = clearAllLogs;
+        
+        console.log('ログウィンドウ初期化完了');
+    </script>
+</body>
+</html>
