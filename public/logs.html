@@ -59,16 +59,6 @@
             background-color: #28a745;
         }
         
-        .status-indicator.reconnecting {
-            background-color: #ffc107;
-            animation: pulse 1s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        
         .log-stats {
             font-weight: bold;
             color: #495057;
@@ -393,15 +383,8 @@
             window.location.href = '/room-manager';
         }
         
-        // Socket.io接続設定（再接続を強化）
-        const socket = io({
-            reconnection: true,              // 自動再接続を有効化
-            reconnectionAttempts: 10,        // 再接続試行回数
-            reconnectionDelay: 1000,         // 再接続までの待機時間（ミリ秒）
-            reconnectionDelayMax: 5000,      // 最大待機時間
-            timeout: 20000,                  // 接続タイムアウト
-            transports: ['websocket', 'polling'] // WebSocket優先、フォールバックでpolling
-        });
+        // Socket.io接続
+        const socket = io();
         
         // 参加者情報を格納
         let participants = [];
@@ -421,35 +404,10 @@
             loadExistingLogs();
         });
         
-        socket.on('disconnect', (reason) => {
+        socket.on('disconnect', () => {
             statusIndicator.className = 'status-indicator';
             connectionText.textContent = '切断';
-            console.log('Socket.io接続切断:', reason);
-        });
-        
-        socket.on('reconnecting', (attemptNumber) => {
-            statusIndicator.className = 'status-indicator reconnecting';
-            connectionText.textContent = '再接続中...';
-            console.log('再接続中...', attemptNumber);
-        });
-        
-        socket.on('reconnect', (attemptNumber) => {
-            statusIndicator.className = 'status-indicator connected';
-            connectionText.textContent = '接続済み';
-            console.log('再接続成功', attemptNumber);
-            
-            // 再接続後、再度ルームに参加してログを再読み込み
-            if (roomId) {
-                socket.emit('join_logs', { roomId: roomId });
-                loadExistingLogs();
-            }
-        });
-        
-        socket.on('connect_error', (error) => {
-            statusIndicator.className = 'status-indicator';
-            connectionText.textContent = '接続エラー';
-            console.error('Socket.io接続エラー:', error);
-        });
+            console.log('Socket.io接続切断');
         });
         
         socket.on('connect_error', (error) => {
@@ -828,14 +786,6 @@
         // ウィンドウが閉じられる前の処理
         window.addEventListener('beforeunload', () => {
             socket.disconnect();
-        });
-        
-        // Page Visibility API: タブがアクティブになったら接続確認+自動再接続
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !socket.connected) {
-                console.log('タブがアクティブになりました。再接続を試みます...');
-                socket.connect();
-            }
         });
         
         // 親ウィンドウから呼び出される関数をグローバルに設定
