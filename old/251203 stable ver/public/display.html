@@ -53,16 +53,6 @@
             background-color: #28a745;
         }
         
-        .status-indicator.reconnecting {
-            background-color: #ffc107;
-            animation: pulse 1s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        
         .current-time {
             font-family: monospace;
         }
@@ -2519,15 +2509,7 @@
             const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const socketUrl = isLocalDevelopment ? 'http://localhost:3000' : '';
             
-            // Socket.io接続設定（再接続を強化）
-            const socket = io(socketUrl, {
-                reconnection: true,              // 自動再接続を有効化
-                reconnectionAttempts: 10,        // 再接続試行回数
-                reconnectionDelay: 1000,         // 再接続までの待機時間（ミリ秒）
-                reconnectionDelayMax: 5000,      // 最大待機時間
-                timeout: 20000,                  // 接続タイムアウト
-                transports: ['websocket', 'polling'] // WebSocket優先、フォールバックでpolling
-            });
+            const socket = io(socketUrl);
             
             socket.on('connect', () => {
                 statusIndicator.className = 'status-indicator connected';
@@ -2539,32 +2521,13 @@
                 console.log('join_displayイベント送信:', roomId);
             });
             
-            socket.on('disconnect', (reason) => {
+            socket.on('disconnect', () => {
                 statusIndicator.className = 'status-indicator';
                 connectionText.textContent = '切断';
-                console.log('接続切断:', reason);
-            });
-            
-            socket.on('reconnecting', (attemptNumber) => {
-                statusIndicator.className = 'status-indicator reconnecting';
-                connectionText.textContent = '再接続中...';
-                console.log('再接続中...', attemptNumber);
-            });
-            
-            socket.on('reconnect', (attemptNumber) => {
-                statusIndicator.className = 'status-indicator connected';
-                connectionText.textContent = '接続済み';
-                console.log('再接続成功', attemptNumber);
-                
-                // 再接続後、再度ルームに参加
-                socket.emit('join_display', { roomId: roomId });
             });
             
             socket.on('connect_error', (error) => {
                 statusIndicator.className = 'status-indicator';
-                connectionText.textContent = '接続エラー';
-                console.error('接続エラー:', error);
-            });
                 connectionText.textContent = '接続エラー';
                 console.error('接続エラー:', error);
             });
@@ -2636,14 +2599,6 @@
         // アプリケーション開始
         initialize();
         updateDebugInfo();
-        
-        // Page Visibility API: タブがアクティブになったら接続確認+自動再接続
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !socket.connected) {
-                console.log('タブがアクティブになりました。再接続を試みます...');
-                socket.connect();
-            }
-        });
         
         console.log('JavaScript初期化完了');
     </script>

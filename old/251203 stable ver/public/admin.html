@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理画面 - リアルタイム文字起こしシステム（新UI）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic Medium", "Meiryo", "MS Gothic", sans-serif;
+            background-color: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            background-color: #1a1a1a;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 100;
+            position: relative;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .header-center {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .translation-config-btn {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .translation-config-btn:hover {
+            background-color: #138496;
+            transform: translateY(-1px);
+        }
+        
+        .translation-config-btn.configured {
+            background-color: #28a745;
+        }
+        
+        .translation-config-btn.configured:hover {
+            background-color: #218838;
+        }
+        
+        .system-mode {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .mode-toggle {
+            position: relative;
+            width: 180px;
+            height: 40px;
+            background-color: #333;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            border: 2px solid #555;
+        }
+        
+        .mode-toggle.take-mode {
+            background-color: #007bff;
+            border-color: #0056b3;
+        }
+        
+        .mode-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 86px;
+            height: 32px;
+            background-color: white;
+            border-radius: 16px;
+            transition: transform 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            color: #333;
+        }
+        
+        .mode-toggle.take-mode .mode-slider {
+            transform: translateX(86px);
+        }
+        
+        .mode-labels {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+        }
+        
+        .mode-label {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+        
+        .mode-label.active {
+            color: #333;
+        }
+        
+        .mode-label.inactive {
+            color: #ccc;
+        }
+        
+        /* ヘッダー警告UI */
+        .rate-limit-warning {
+            padding: 8px 15px;
+            background-color: #ffc107;
+            color: #856404;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            white-space: nowrap;
+        }
+        
+        .rate-limit-warning.visible {
+            opacity: 1;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #dc3545;
+        }
+        
+        .status-indicator.connected {
+            background-color: #28a745;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+            gap: 2px;
+        }
+        
+        /* 左パネル: 待機キュー（33%幅） */
+        .left-panel {
+            width: 33%;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #e9ecef;
+        }
+        
+        /* 右パネル: 編集エリア（67%幅） */
+        .right-panel {
+            width: 67%;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-header {
+            background-color: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+            color: #495057;
+            font-size: 16px;
+        }
+        
+        .queue-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .queue-count {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 14px;
+        }
+        
+        .queue-count.warning {
+            color: #ffc107;
+        }
+        
+        .queue-count.critical {
+            color: #dc3545;
+        }
+        
+        .queue-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .queue-item {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .queue-item:hover {
+            background-color: #e9ecef;
+            border-color: #007bff;
+        }
+        
+        .queue-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .queue-item-sender {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .queue-item-time {
+            font-family: monospace;
+        }
+        
+        .queue-item-text {
+            color: #333;
+            line-height: 1.4;
+            word-wrap: break-word;
+            font-size: 15px;
+        }
+        
+        .queue-controls {
+            padding: 15px 20px;
+            border-top: 1px solid #ddd;
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin: 0 5px;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background-color: #218838;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #545b62;
+        }
+        
+        .btn:disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* 右パネルの上下分割 */
+        .edit-area-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .japanese-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .translation-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .section-header {
+            background-color: #f8f9fa;
+            padding: 12px 20px;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+            color: #495057;
+            font-size: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .japanese-section .section-header {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .translation-section .section-header {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .translation-status {
+            font-size: 12px;
+            font-weight: normal;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: rgba(255,255,255,0.5);
+        }
+        
+        .translation-status.idle {
+            color: #6c757d;
+        }
+        
+        .translation-status.translating {
+            color: #007bff;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .translation-status.completed {
+            color: #28a745;
+        }
+        
+        .translation-status.error {
+            color: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .edit-textarea {
+            flex: 1;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            font-family: inherit;
+            line-height: 1.6;
+            resize: none;
+            background-color: #fff;
+        }
+        
+        .edit-textarea:focus {
+            background-color: #fefefe;
+        }
+        
+        .japanese-section .edit-textarea {
+            background-color: #fafffe;
+        }
+        
+        .translation-section .edit-textarea {
+            background-color: #fdfafd;
+        }
+        
+        .edit-controls {
+            padding: 15px 20px;
+            border-top: 1px solid #ddd;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .translation-section .edit-controls {
+            background-color: #f8f4f8;
+        }
+        
+        .control-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .control-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .auto-translate-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #495057;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .toggle-switch.active {
+            background-color: #007bff;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+        
+        .char-counter {
+            font-size: 12px;
+            color: #6c757d;
+            font-family: monospace;
+        }
+        
+        .no-queue {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 50px 20px;
+            font-size: 16px;
+        }
+        
+        .emergency-notice {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px 20px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 1px solid #f5c6cb;
+        }
+        
+        .return-available {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px 20px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 1px solid #c3e6cb;
+        }
+        
+        .return-button {
+            background-color: #17a2b8;
+            color: white;
+            margin-left: 10px;
+        }
+        
+        .return-button:hover:not(:disabled) {
+            background-color: #138496;
+        }
+
+        /* 自動呼び出し設定パネル */
+        .auto-call-panel {
+            padding: 10px 20px;
+            background-color: #f0f8ff;
+            border-bottom: 1px solid #ddd;
+            font-size: 12px;
+        }
+        
+        .auto-call-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .auto-call-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .auto-call-status {
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        /* スクロールバー */
+        .queue-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .queue-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .queue-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        .queue-list::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* ショートカットヒント */
+        .shortcut-hint {
+            font-size: 11px;
+            color: #6c757d;
+            margin-left: 5px;
+        }
+        
+        /* 翻訳設定モーダル */
+        .translation-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        
+        .translation-panel {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            width: 500px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .close-modal-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6c757d;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .close-modal-btn:hover {
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        .config-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .config-section h3 {
+            margin-bottom: 15px;
+            color: #495057;
+            font-size: 16px;
+        }
+        
+        .config-row {
+            margin-bottom: 15px;
+        }
+        
+        .config-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .config-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .config-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        
+        .config-checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .config-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #007bff;
+        }
+        
+        .config-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .config-status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .config-status.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .config-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .test-section {
+            background-color: #e8f4fd;
+            border-left-color: #17a2b8;
+        }
+        
+        .test-input {
+            margin-bottom: 10px;
+        }
+        
+        .test-result {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 60px;
+            font-size: 14px;
+            color: #333;
+            white-space: pre-wrap;
+        }
+        
+        .test-result.loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #007bff;
+        }
+        
+        .test-result.success {
+            border-color: #28a745;
+            background-color: #f8fff8;
+        }
+        
+        .test-result.error {
+            border-color: #dc3545;
+            background-color: #fff5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">🛠️ 管理画面</div>
+        
+        <div class="header-center">
+            <div class="system-mode">
+                <div class="mode-toggle" id="modeToggle">
+                    <div class="mode-slider" id="modeSlider">リアルタイム</div>
+                    <div class="mode-labels">
+                        <div class="mode-label active" id="realtimeLabel">リアルタイム</div>
+                        <div class="mode-label inactive" id="takeLabel">テイク</div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="translation-config-btn" id="translationConfigBtn">
+                🌐 翻訳設定
+            </button>
+        </div>
+        
+        <div class="header-right">
+            <!-- ヘッダー警告UI -->
+            <div class="rate-limit-warning" id="rateLimitWarning">
+                ⚠️ 翻訳API使用量が多くなっています（30回/分超過）
+            </div>
+            
+            <div class="connection-status">
+                <div id="statusIndicator" class="status-indicator"></div>
+                <span id="connectionText">接続中...</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 緊急切替通知 -->
+    <div class="emergency-notice" id="emergencyNotice" style="display: none;">
+        🚨 緊急自動切替: キューが満杯になったため、リアルタイム送出モードに自動切替されました
+    </div>
+    
+    <!-- 復帰可能通知 -->
+    <div class="return-available" id="returnAvailable" style="display: none;">
+        ✅ テイクモード復帰可能
+        <button class="btn return-button" id="returnToTakeBtn">🔄 テイクモードに戻す</button>
+    </div>
+    
+    <div class="main-container">
+        <!-- 左パネル: 待機キュー -->
+        <div class="left-panel">
+            <div class="panel-header">
+                <div class="queue-info">
+                    <div>📋 待機キュー</div>
+                    <span class="queue-count" id="queueCount">0件</span>
+                </div>
+            </div>
+            
+            <!-- 自動呼び出し設定パネル -->
+            <div class="auto-call-panel">
+                <div class="auto-call-controls">
+                    <div class="auto-call-toggle">
+                        <input type="checkbox" id="autoCallEnabled" checked>
+                        <label for="autoCallEnabled">自動呼び出し</label>
+                    </div>
+                    <span class="auto-call-status" id="autoCallStatus">有効</span>
+                </div>
+            </div>
+            
+            <div class="queue-list" id="queueList">
+                <div class="no-queue" id="noQueue">
+                    📭 待機中のテキストはありません
+                </div>
+            </div>
+            
+            <div class="queue-controls">
+                <button class="btn btn-primary" id="callNextBtn" disabled>
+                    📥 次を呼び出し
+                    <span class="shortcut-hint">(Ctrl+N)</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 右パネル: 編集エリア -->
+        <div class="right-panel">
+            <div class="edit-area-container">
+                <!-- 上段: 日本語編集エリア -->
+                <div class="japanese-section">
+                    <div class="section-header">
+                        <span>📝 日本語編集エリア</span>
+                        <span class="char-counter" id="japaneseCharCounter">0文字</span>
+                    </div>
+                    
+                    <textarea 
+                        class="edit-textarea" 
+                        id="japaneseTextarea" 
+                        placeholder="「次を呼び出し」ボタンでテキストを呼び出して編集してください..."
+                    ></textarea>
+                    
+                    <div class="edit-controls">
+                        <div class="control-left">
+                            <button class="btn btn-primary" id="sendJapaneseBtn" disabled>
+                                📤 日本語送出
+                                <span class="shortcut-hint">(Ctrl+J)</span>
+                            </button>
+                        </div>
+                        <div class="control-right">
+                            <div class="auto-translate-toggle">
+                                <span>自動翻訳</span>
+                                <div class="toggle-switch active" id="autoTranslateToggle">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 下段: 翻訳結果編集エリア -->
+                <div class="translation-section">
+                    <div class="section-header">
+                        <span>🌐 翻訳結果編集エリア</span>
+                        <span class="translation-status idle" id="translationStatus">待機中</span>
+                    </div>
+                    
+                    <textarea 
+                        class="edit-textarea" 
+                        id="translationTextarea" 
+                        placeholder="日本語を入力すると自動翻訳されます..."
+                    ></textarea>
+                    
+                    <div class="edit-controls">
+                        <div class="control-left">
+                            <button class="btn btn-success" id="sendTranslationBtn" disabled>
+                                📤 英語送出
+                                <span class="shortcut-hint">(Ctrl+E)</span>
+                            </button>
+                            <button class="btn btn-secondary" id="clearAllBtn">
+                                🗑️ 全クリア
+                                <span class="shortcut-hint">(Ctrl+R)</span>
+                            </button>
+                        </div>
+                        <div class="control-right">
+                            <span class="char-counter" id="translationCharCounter">0文字</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 翻訳設定モーダル -->
+    <div class="translation-modal" id="translationModal">
+        <div class="translation-panel">
+            <div class="modal-header">
+                <h2 class="modal-title">🌐 翻訳設定管理</h2>
+                <button class="close-modal-btn" id="closeModalBtn">×</button>
+            </div>
+            
+            <!-- 基本設定 -->
+            <div class="config-section">
+                <h3>基本設定</h3>
+                <div class="config-row">
+                    <div class="config-checkbox-row">
+                        <input type="checkbox" class="config-checkbox" id="configTranslationEnabled">
+                        <label for="configTranslationEnabled" class="config-label">翻訳機能を有効化</label>
+                        <span class="config-status" id="translationStatusBadge">未設定</span>
+                    </div>
+                </div>
+                <div class="config-row">
+                    <label class="config-label">対象言語</label>
+                    <select class="config-input" id="configTargetLanguage">
+                        <option value="en-US">英語（アメリカ）</option>
+                        <option value="en-GB">英語（イギリス）</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- API設定 -->
+            <div class="config-section">
+                <h3>DeepL API設定</h3>
+                <div class="config-row">
+                    <label class="config-label">APIキー</label>
+                    <input type="password" class="config-input" id="configApiKey" placeholder="DeepL APIキーを入力...">
+                    <div style="margin-top: 5px; font-size: 12px; color: #6c757d;">
+                        ⚠️ APIキーは安全に管理されます。空欄の場合は既存のキーを保持します。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- テスト機能 -->
+            <div class="config-section test-section">
+                <h3>翻訳テスト</h3>
+                <div class="config-row">
+                    <label class="config-label">テスト用日本語テキスト</label>
+                    <input type="text" class="config-input test-input" id="testText" placeholder="翻訳をテストしたい日本語を入力..." value="こんにちは、世界！">
+                </div>
+                <div class="config-row">
+                    <label class="config-label">翻訳結果</label>
+                    <div class="test-result" id="testResult">「翻訳テスト実行」ボタンを押してください</div>
+                </div>
+            </div>
+            
+            <div class="config-actions">
+                <button class="btn btn-secondary" id="testTranslationBtn">🧪 翻訳テスト実行</button>
+                <button class="btn btn-primary" id="saveConfigBtn">💾 設定を保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        console.log('=== 新管理画面UI（自動呼び出し機能完全版）開始 ===');
+        
+        // DOM要素の取得
+        const statusIndicator = document.getElementById('statusIndicator');
+        const connectionText = document.getElementById('connectionText');
+        const modeToggle = document.getElementById('modeToggle');
+        const modeSlider = document.getElementById('modeSlider');
+        const realtimeLabel = document.getElementById('realtimeLabel');
+        const takeLabel = document.getElementById('takeLabel');
+        const rateLimitWarning = document.getElementById('rateLimitWarning');
+        const emergencyNotice = document.getElementById('emergencyNotice');
+        const returnAvailable = document.getElementById('returnAvailable');
+        const returnToTakeBtn = document.getElementById('returnToTakeBtn');
+        
+        // 自動呼び出し関連要素
+        const autoCallEnabled = document.getElementById('autoCallEnabled');
+        const autoCallStatus = document.getElementById('autoCallStatus');
+        
+        // 翻訳設定モーダル関連
+        const translationConfigBtn = document.getElementById('translationConfigBtn');
+        const translationModal = document.getElementById('translationModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const configTranslationEnabled = document.getElementById('configTranslationEnabled');
+        const configTargetLanguage = document.getElementById('configTargetLanguage');
+        const configApiKey = document.getElementById('configApiKey');
+        const translationStatusBadge = document.getElementById('translationStatusBadge');
+        const testText = document.getElementById('testText');
+        const testResult = document.getElementById('testResult');
+        const testTranslationBtn = document.getElementById('testTranslationBtn');
+        const saveConfigBtn = document.getElementById('saveConfigBtn');
+        
+        // キュー関連
+        const queueCount = document.getElementById('queueCount');
+        const queueList = document.getElementById('queueList');
+        const noQueue = document.getElementById('noQueue');
+        const callNextBtn = document.getElementById('callNextBtn');
+        
+        // 編集エリア関連
+        const japaneseTextarea = document.getElementById('japaneseTextarea');
+        const translationTextarea = document.getElementById('translationTextarea');
+        const japaneseCharCounter = document.getElementById('japaneseCharCounter');
+        const translationCharCounter = document.getElementById('translationCharCounter');
+        const translationStatus = document.getElementById('translationStatus');
+        
+        // ボタン
+        const sendJapaneseBtn = document.getElementById('sendJapaneseBtn');
+        const sendTranslationBtn = document.getElementById('sendTranslationBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const autoTranslateToggle = document.getElementById('autoTranslateToggle');
+        
+        // 状態管理
+        let currentMode = 'realtime';
+        let takeQueue = [];
+        let isEmergencyMode = false;
+        let autoTranslateEnabled = true;
+        let autoCallModeEnabled = true; // 自動呼び出し機能の有効/無効
+        let translationDebounceTimer = null;
+        let translationRequestCount = 0;
+        let requestCountResetTimer = null;
+        let translationConfig = {
+            enabled: false,
+            targetLanguage: 'en-US',
+            hasApiKey: false
+        };
+        
+        // 翻訳設定
+        const translationSettings = {
+            debounceDelay: 200,                    // 200ms遅延
+            maxRequestsPerMinute: 30,              // 警告閾値（停止なし）
+            skipSimilarText: false,                // 類似テキストもスキップしない
+            enableRateLimitWarning: true           // レート制限警告表示
+        };
+        
+        // キュー設定
+        const queueSettings = {
+            warnThreshold: 500,
+            criticalThreshold: 800,
+            emergencyThreshold: 1000,
+            returnMargin: 200
+        };
+
+        // URLパラメータからroomIdを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        
+        if (!roomId) {
+            alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+            window.location.href = '/room-manager';
+        }
+        
+        console.log('管理画面 - ルームID:', roomId);
+        
+        // Socket.io接続
+        const socket = io();
+        
+        socket.on('connect', () => {
+            statusIndicator.className = 'status-indicator connected';
+            connectionText.textContent = '接続済み';
+            console.log('Socket.io接続成功:', socket.id);
+            
+            // 管理画面として接続を通知
+            socket.emit('join_admin', { roomId: roomId });
+        });
+        
+        socket.on('disconnect', () => {
+            statusIndicator.className = 'status-indicator';
+            connectionText.textContent = '切断';
+            console.log('Socket.io接続切断');
+        });
+        
+        socket.on('connect_error', (error) => {
+            statusIndicator.className = 'status-indicator';
+            connectionText.textContent = '接続エラー';
+            console.error('Socket.io接続エラー:', error);
+        });
+        
+        // システム状態の受信
+        socket.on('system_status', (data) => {
+            console.log('システム状態受信:', data);
+            currentMode = data.mode;
+            takeQueue = data.takeQueue || [];
+            isEmergencyMode = data.isEmergencyMode || false;
+            updateUI();
+        });
+        
+        // システムモード変更通知
+        socket.on('system_mode_changed', (data) => {
+            console.log('システムモード変更受信:', data);
+            currentMode = data.mode;
+            if (data.reason === 'emergency_queue_full') {
+                isEmergencyMode = true;
+                showEmergencyNotice();
+            }
+            updateUI();
+        });
+        
+        // テイクキュー更新
+        socket.on('take_queue_updated', (data) => {
+            console.log('キュー更新受信:', data);
+            const previousQueueLength = takeQueue.length;
+            takeQueue = data.queue;
+            updateQueueDisplay();
+            updateButtonStates();
+            checkReturnAvailability();
+            
+            // 自動呼び出しチェック: キューにテキストが追加され、編集エリアが空の場合
+            if (autoCallModeEnabled && currentMode === 'take') {
+                const currentQueueLength = takeQueue.length;
+                const isTextAreaEmpty = japaneseTextarea.value.trim() === '';
+                
+                if (currentQueueLength > previousQueueLength && isTextAreaEmpty) {
+                    console.log('🚀 自動呼び出し発動: 新しいテキストがキューに追加され、編集エリアが空です');
+                    setTimeout(() => {
+                        checkAndAutoCall('キュー追加時の自動呼び出し');
+                    }, 100);
+                }
+            }
+        });
+        
+        // 緊急切替通知
+        socket.on('emergency_realtime_switched', (data) => {
+            console.log('緊急切替通知:', data);
+            isEmergencyMode = true;
+            showEmergencyNotice();
+        });
+        
+        // 復帰可能通知
+        socket.on('take_mode_available', (data) => {
+            console.log('復帰可能通知:', data);
+            showReturnAvailable();
+        });
+        
+        // 翻訳結果受信
+        socket.on('translation_result', (data) => {
+            console.log('翻訳結果受信:', data);
+            handleTranslationResult(data);
+        });
+        
+        // 翻訳設定受信
+        socket.on('advanced_translation_config', (data) => {
+            console.log('高度な翻訳設定受信:', data);
+            translationConfig = data;
+            updateTranslationConfigUI();
+        });
+        
+        socket.on('advanced_translation_config_updated', (data) => {
+            console.log('翻訳設定更新完了:', data);
+            if (data.success) {
+                translationConfig = data.config;
+                updateTranslationConfigUI();
+                alert('翻訳設定を保存しました');
+            } else {
+                alert(`設定保存に失敗しました: ${data.error}`);
+            }
+        });
+        
+        socket.on('translation_config_updated', (data) => {
+            console.log('翻訳設定変更通知:', data);
+            if (data.config) {
+                translationConfig = data.config;
+                updateTranslationConfigUI();
+            }
+        });
+        
+        // 自動呼び出し機能
+        function checkAndAutoCall(reason) {
+            if (!autoCallModeEnabled) {
+                console.log('自動呼び出し無効のため実行しません');
+                return;
+            }
+            
+            if (currentMode !== 'take') {
+                console.log('テイクモードでないため自動呼び出し無効');
+                return;
+            }
+            
+            if (takeQueue.length === 0) {
+                console.log('キューが空のため自動呼び出し無効');
+                return;
+            }
+            
+            const isTextAreaEmpty = japaneseTextarea.value.trim() === '';
+            if (!isTextAreaEmpty) {
+                console.log('編集エリアにテキストがあるため自動呼び出し無効');
+                return;
+            }
+            
+            console.log(`🚀 自動呼び出し実行: ${reason}`);
+            callNextText();
+        }
+        
+        // 自動呼び出し設定の更新
+        function updateAutoCallStatus() {
+            autoCallStatus.textContent = autoCallModeEnabled ? '有効' : '無効';
+            autoCallStatus.style.color = autoCallModeEnabled ? '#007bff' : '#6c757d';
+        }
+        
+        // 翻訳設定UIを更新
+        function updateTranslationConfigUI() {
+            // ボタンの状態更新
+            if (translationConfig.enabled && translationConfig.hasApiKey) {
+                translationConfigBtn.className = 'translation-config-btn configured';
+                translationConfigBtn.textContent = '🌐 翻訳設定 ✓';
+            } else {
+                translationConfigBtn.className = 'translation-config-btn';
+                translationConfigBtn.textContent = '🌐 翻訳設定';
+            }
+            
+            // モーダル内のUI更新
+            configTranslationEnabled.checked = translationConfig.enabled;
+            configTargetLanguage.value = translationConfig.targetLanguage || 'en-US';
+            
+            // ステータスバッジ更新
+            if (translationConfig.enabled && translationConfig.hasApiKey) {
+                translationStatusBadge.className = 'config-status success';
+                translationStatusBadge.textContent = '設定完了';
+            } else if (translationConfig.hasApiKey) {
+                translationStatusBadge.className = 'config-status warning';
+                translationStatusBadge.textContent = '機能無効';
+            } else {
+                translationStatusBadge.className = 'config-status error';
+                translationStatusBadge.textContent = 'APIキー未設定';
+            }
+        }
+        
+        // 翻訳設定を読み込み
+        function loadTranslationConfig() {
+            socket.emit('get_advanced_translation_config');
+        }
+        
+        // 翻訳設定を保存
+        function saveTranslationConfig() {
+            const config = {
+                enabled: configTranslationEnabled.checked,
+                targetLanguage: configTargetLanguage.value,
+                apiKey: configApiKey.value.trim()
+            };
+            
+            console.log('翻訳設定保存要求:', {
+                enabled: config.enabled,
+                targetLanguage: config.targetLanguage,
+                hasApiKey: config.apiKey.length > 0
+            });
+            
+            socket.emit('update_advanced_translation_config', config);
+            
+            // APIキー入力欄をクリア（セキュリティのため）
+            configApiKey.value = '';
+        }
+        
+        // 翻訳テスト実行
+        async function executeTranslationTest() {
+            const text = testText.value.trim();
+            if (!text) {
+                alert('テスト用テキストを入力してください');
+                return;
+            }
+            
+            testResult.className = 'test-result loading';
+            testResult.textContent = '翻訳中...';
+            testTranslationBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/translation/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    testResult.className = 'test-result success';
+                    testResult.textContent = `✅ 翻訳成功\n\n原文: ${data.result.originalText}\n翻訳結果: ${data.result.translatedText}\n検出言語: ${data.result.detectedSourceLang}`;
+                } else {
+                    testResult.className = 'test-result error';
+                    testResult.textContent = `❌ 翻訳失敗\n\nエラー: ${data.error}`;
+                }
+            } catch (error) {
+                testResult.className = 'test-result error';
+                testResult.textContent = `❌ 通信エラー\n\nエラー: ${error.message}`;
+            }
+            
+            testTranslationBtn.disabled = false;
+        }
+        
+        // 文字数カウント（全角文字対応）
+        function countCharacters(text) {
+            let count = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (char.match(/[^\x00-\x7F]/)) {
+                    count += 1; // 全角文字
+                } else {
+                    count += 0.5; // 半角文字
+                }
+            }
+            return count;
+        }
+        
+        // 文字数表示を更新
+        function updateCharCounters() {
+            const japaneseCount = countCharacters(japaneseTextarea.value);
+            const translationCount = countCharacters(translationTextarea.value);
+            
+            japaneseCharCounter.textContent = `${japaneseCount}文字`;
+            translationCharCounter.textContent = `${translationCount}文字`;
+        }
+        
+        // UIの更新
+        function updateUI() {
+            updateModeToggle();
+            updateQueueDisplay();
+            updateButtonStates();
+            checkReturnAvailability();
+        }
+        
+        // モードトグルの更新
+        function updateModeToggle() {
+            if (currentMode === 'take') {
+                modeToggle.classList.add('take-mode');
+                modeSlider.textContent = 'テイク';
+                realtimeLabel.classList.remove('active');
+                realtimeLabel.classList.add('inactive');
+                takeLabel.classList.remove('inactive');
+                takeLabel.classList.add('active');
+            } else {
+                modeToggle.classList.remove('take-mode');
+                modeSlider.textContent = 'リアルタイム';
+                realtimeLabel.classList.remove('inactive');
+                realtimeLabel.classList.add('active');
+                takeLabel.classList.remove('active');
+                takeLabel.classList.add('inactive');
+            }
+        }
+        
+        // キュー表示の更新
+        function updateQueueDisplay() {
+            const count = takeQueue.length;
+            queueCount.textContent = `${count}件`;
+            
+            // キューカウントの色設定
+            queueCount.className = 'queue-count';
+            if (count >= queueSettings.criticalThreshold) {
+                queueCount.classList.add('critical');
+            } else if (count >= queueSettings.warnThreshold) {
+                queueCount.classList.add('warning');
+            }
+            
+            // キューリストの表示
+            if (count === 0) {
+                noQueue.style.display = 'block';
+                queueList.innerHTML = '';
+                queueList.appendChild(noQueue);
+            } else {
+                noQueue.style.display = 'none';
+                renderQueueList();
+            }
+        }
+        
+        // キューリストのレンダリング
+        function renderQueueList() {
+            queueList.innerHTML = '';
+            
+            takeQueue.forEach((item, index) => {
+                const queueItem = document.createElement('div');
+                queueItem.className = 'queue-item';
+                
+                const timestamp = new Date(item.timestamp);
+                const timeString = timestamp.toLocaleTimeString('ja-JP');
+                
+                queueItem.innerHTML = `
+                    <div class="queue-item-header">
+                        <span class="queue-item-sender">${item.sender}</span>
+                        <span class="queue-item-time">${timeString}</span>
+                    </div>
+                    <div class="queue-item-text">${item.text}</div>
+                `;
+                
+                // クリックで呼び出し
+                queueItem.addEventListener('click', () => {
+                    if (currentMode === 'take') {
+                        callSpecificItem(index);
+                    }
+                });
+                
+                queueList.appendChild(queueItem);
+            });
+        }
+        
+        // ボタン状態の更新
+        function updateButtonStates() {
+            const hasQueue = takeQueue.length > 0;
+            const hasJapaneseText = japaneseTextarea.value.trim().length > 0;
+            const hasTranslationText = translationTextarea.value.trim().length > 0;
+            const isTakeMode = currentMode === 'take';
+            
+            callNextBtn.disabled = !hasQueue || !isTakeMode;
+            sendJapaneseBtn.disabled = !hasJapaneseText || !isTakeMode;
+            sendTranslationBtn.disabled = !hasTranslationText || !isTakeMode;
+        }
+        
+        // 緊急通知の表示
+        function showEmergencyNotice() {
+            emergencyNotice.style.display = 'block';
+            setTimeout(() => {
+                emergencyNotice.style.display = 'none';
+            }, 10000); // 10秒後に自動で隠す
+        }
+        
+        // 復帰可能通知の表示
+        function showReturnAvailable() {
+            if (isEmergencyMode && currentMode === 'realtime') {
+                returnAvailable.style.display = 'block';
+            }
+        }
+        
+        // 復帰可能性のチェック
+        function checkReturnAvailability() {
+            const returnThreshold = queueSettings.emergencyThreshold - queueSettings.returnMargin;
+            const canReturn = isEmergencyMode && 
+                             currentMode === 'realtime' && 
+                             takeQueue.length <= returnThreshold;
+            
+            if (canReturn) {
+                showReturnAvailable();
+            } else {
+                returnAvailable.style.display = 'none';
+            }
+        }
+        
+        // 次を呼び出し
+        function callNextText() {
+            if (takeQueue.length > 0 && currentMode === 'take') {
+                socket.emit('take_call_next');
+            }
+        }
+        
+        // 特定のキューアイテムを呼び出し
+        function callSpecificItem(index) {
+            if (index >= 0 && index < takeQueue.length && currentMode === 'take') {
+                const item = takeQueue[index];
+                japaneseTextarea.value = item.text;
+                updateCharCounters();
+                updateButtonStates();
+                
+                // 自動翻訳が有効な場合は即時翻訳実行（初回呼び出し）
+                if (autoTranslateEnabled) {
+                    triggerAutoTranslation(true); // 即時実行フラグ
+                }
+                
+                // サーバーに呼び出し完了を通知（該当アイテムを削除）
+                socket.emit('take_call_specific', { index: index });
+            }
+        }
+        
+        // 日本語テキスト送出
+        function sendJapaneseText() {
+            const text = japaneseTextarea.value.trim();
+            if (text && currentMode === 'take') {
+                socket.emit('take_send_text', { text: text });
+                clearAllAreas();
+            }
+        }
+        
+        // 英語テキスト送出
+        function sendTranslationText() {
+            const originalText = japaneseTextarea.value.trim();
+            const translatedText = translationTextarea.value.trim();
+            
+            if (translatedText && currentMode === 'take') {
+                socket.emit('send_translated_text', { 
+                    originalText: originalText,
+                    translatedText: translatedText 
+                });
+                clearAllAreas();
+            }
+        }
+        
+        // 全エリアクリア
+        function clearAllAreas() {
+            japaneseTextarea.value = '';
+            translationTextarea.value = '';
+            updateCharCounters();
+            updateButtonStates();
+            updateTranslationStatus('idle', '待機中');
+            
+            // 送出後の自動呼び出し: キューにテキストがあれば次を呼び出し
+            setTimeout(() => {
+                checkAndAutoCall('送出後の自動呼び出し');
+            }, 100); // 100ms後に実行（UI更新完了を待つ）
+        }
+        
+        // 翻訳ステータス更新
+        function updateTranslationStatus(status, text) {
+            translationStatus.className = `translation-status ${status}`;
+            translationStatus.textContent = text;
+        }
+        
+        // リアルタイム翻訳機能
+        function triggerAutoTranslation(isInitialCall = false) {
+            if (!autoTranslateEnabled) return;
+            
+            const text = japaneseTextarea.value.trim();
+            if (text.length === 0) {
+                translationTextarea.value = '';
+                updateTranslationStatus('idle', '待機中');
+                return;
+            }
+            
+            if (isInitialCall) {
+                // 初回呼び出し時（キューからのテキスト呼び出し）は即時実行
+                console.log('初回呼び出し - 即時翻訳実行');
+                executeTranslation(text);
+            } else {
+                // 編集中の変更時は200ms後に実行（デバウンス処理）
+                console.log('編集中の変更 - 200ms後に翻訳実行');
+                if (translationDebounceTimer) {
+                    clearTimeout(translationDebounceTimer);
+                }
+                
+                translationDebounceTimer = setTimeout(() => {
+                    executeTranslation(text);
+                }, translationSettings.debounceDelay);
+            }
+        }
+        
+        // 翻訳実行
+        function executeTranslation(text) {
+            updateTranslationStatus('translating', '翻訳中...');
+            
+            // レート制限カウント
+            incrementTranslationCount();
+            
+            socket.emit('execute_translation', { 
+                text: text,
+                forceTest: false
+            });
+        }
+        
+        // 翻訳結果処理
+        function handleTranslationResult(data) {
+            if (data.success) {
+                translationTextarea.value = data.result.translatedText;
+                updateTranslationStatus('completed', '翻訳完了');
+            } else {
+                updateTranslationStatus('error', `エラー: ${data.error}`);
+            }
+            updateCharCounters();
+            updateButtonStates();
+        }
+        
+        // レート制限管理
+        function incrementTranslationCount() {
+            translationRequestCount++;
+            
+            // 1分後にカウントをリセット
+            if (requestCountResetTimer) {
+                clearTimeout(requestCountResetTimer);
+            }
+            requestCountResetTimer = setTimeout(() => {
+                translationRequestCount = 0;
+                hideRateLimitWarning();
+            }, 60000);
+            
+            // 警告表示チェック
+            if (translationSettings.enableRateLimitWarning && 
+                translationRequestCount >= translationSettings.maxRequestsPerMinute) {
+                showRateLimitWarning();
+            }
+        }
+        
+        // レート制限警告表示
+        function showRateLimitWarning() {
+            rateLimitWarning.classList.add('visible');
+        }
+        
+        // レート制限警告非表示
+        function hideRateLimitWarning() {
+            rateLimitWarning.classList.remove('visible');
+        }
+        
+        // イベントリスナー設定
+        
+        // 自動呼び出し設定
+        autoCallEnabled.addEventListener('change', (e) => {
+            autoCallModeEnabled = e.target.checked;
+            updateAutoCallStatus();
+            console.log('自動呼び出し設定変更:', autoCallModeEnabled);
+        });
+        
+        // モードトグル
+        modeToggle.addEventListener('click', () => {
+            const newMode = currentMode === 'realtime' ? 'take' : 'realtime';
+            socket.emit('toggle_system_mode', { mode: newMode });
+        });
+        
+        // 復帰ボタン
+        returnToTakeBtn.addEventListener('click', () => {
+            socket.emit('return_to_take_mode');
+            isEmergencyMode = false;
+            returnAvailable.style.display = 'none';
+        });
+        
+        // 次を呼び出しボタン
+        callNextBtn.addEventListener('click', callNextText);
+        
+        // 送出ボタン
+        sendJapaneseBtn.addEventListener('click', sendJapaneseText);
+        sendTranslationBtn.addEventListener('click', sendTranslationText);
+        
+        // 全クリアボタン
+        clearAllBtn.addEventListener('click', clearAllAreas);
+        
+        // 自動翻訳トグル
+        autoTranslateToggle.addEventListener('click', () => {
+            autoTranslateEnabled = !autoTranslateEnabled;
+            autoTranslateToggle.classList.toggle('active', autoTranslateEnabled);
+            
+            if (autoTranslateEnabled && japaneseTextarea.value.trim()) {
+                triggerAutoTranslation(false);
+            }
+        });
+        
+        // 翻訳設定ボタン
+        translationConfigBtn.addEventListener('click', () => {
+            translationModal.style.display = 'flex';
+            loadTranslationConfig();
+        });
+        
+        // モーダル閉じる
+        closeModalBtn.addEventListener('click', () => {
+            translationModal.style.display = 'none';
+        });
+        
+        translationModal.addEventListener('click', (e) => {
+            if (e.target === translationModal) {
+                translationModal.style.display = 'none';
+            }
+        });
+        
+        // 翻訳設定保存ボタン
+        saveConfigBtn.addEventListener('click', saveTranslationConfig);
+        
+        // 翻訳テストボタン
+        testTranslationBtn.addEventListener('click', executeTranslationTest);
+        
+        // テストテキストでEnterキー
+        testText.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                executeTranslationTest();
+            }
+        });
+        
+        // テキストエリアの変更監視
+        japaneseTextarea.addEventListener('input', () => {
+            updateCharCounters();
+            updateButtonStates();
+            
+            // 自動翻訳トリガー（編集中の変更なのでデバウンスあり）
+            if (autoTranslateEnabled) {
+                triggerAutoTranslation(false); // 編集中フラグ
+            }
+        });
+        
+        translationTextarea.addEventListener('input', () => {
+            updateCharCounters();
+            updateButtonStates();
+        });
+        
+        // キーボードショートカット
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'n') {
+                e.preventDefault();
+                callNextText();
+            }
+            
+            if (e.ctrlKey && e.key === 'j') {
+                e.preventDefault();
+                sendJapaneseText();
+            }
+            
+            if (e.ctrlKey && e.key === 'e') {
+                e.preventDefault();
+                sendTranslationText();
+            }
+            
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                clearAllAreas();
+            }
+        });
+        
+        // テキスト呼び出し完了イベント
+        socket.on('text_called', (data) => {
+            console.log('テキスト呼び出し完了:', data);
+            japaneseTextarea.value = data.text;
+            updateCharCounters();
+            updateButtonStates();
+            
+            // 自動翻訳が有効な場合は即時翻訳実行（初回呼び出し）
+            if (autoTranslateEnabled) {
+                triggerAutoTranslation(true); // 即時実行フラグ
+            }
+        });
+        
+        // 送出完了イベント
+        socket.on('text_sent', (data) => {
+            console.log('日本語送出完了:', data);
+        });
+        
+        socket.on('translated_text_sent', (data) => {
+            console.log('英語送出完了:', data);
+        });
+        
+        // 初期化
+        updateUI();
+        updateCharCounters();
+        updateAutoCallStatus();
+        loadTranslationConfig(); // 翻訳設定も初期読み込み
+        
+        console.log('新管理画面UI（自動呼び出し機能完全版）初期化完了');
+    </script>
+</body>
+</html>
