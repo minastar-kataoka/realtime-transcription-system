@@ -1,0 +1,2596 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>リアルタイム文字起こし - 表示画面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic Medium", "Meiryo", "MS Gothic", sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: #1a1a1a;
+            padding: 15px 30px;
+            border-bottom: 2px solid #333;
+            flex-shrink: 0;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #dc3545;
+        }
+        
+        .status-indicator.connected {
+            background-color: #28a745;
+        }
+        
+        .current-time {
+            font-family: monospace;
+        }
+        
+        .font-controls {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .settings-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .settings-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .text-display-area {
+            flex: 1;
+            border-radius: 10px;
+            border: 2px solid #333;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        
+        /* 上部マスク（表示行数を制限） */
+        .top-mask {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: inherit;
+            z-index: 5;
+            pointer-events: none;
+            transition: height 0.3s ease;
+        }
+        
+        .text-lines {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #fff;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            transition: transform 0.8s linear;
+            /* アニメーション最適化 */
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+        }
+        
+        .text-line {
+            margin: 0;
+            padding: 8px 12px;
+            background-color: inherit;
+        }
+        
+        .waiting-message {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            padding: 50px 0;
+        }
+        
+        .footer {
+            background-color: #1a1a1a;
+            padding: 10px 30px;
+            border-top: 2px solid #333;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            flex-shrink: 0;
+        }
+        
+        /* 全画面表示モード */
+        .fullscreen-mode .header,
+        .fullscreen-mode .footer {
+            display: none;
+        }
+        
+        .fullscreen-mode .main-content {
+            padding: 0;
+        }
+        
+        .fullscreen-mode .text-display-area {
+            border: none;
+            border-radius: 0;
+            height: 100vh !important;
+        }
+        
+        /* 全画面表示インジケーター */
+        .fullscreen-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 123, 255, 0.9);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 3000;
+            display: none;
+            animation: fadeInOut 2s ease-in-out;
+        }
+        
+        .fullscreen-indicator.show {
+            display: block;
+        }
+        
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 1; }
+        }
+        
+        /* デバッグ用 */
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            z-index: 1000;
+        }
+        
+        /* 設定パネル */
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 500px;
+            height: 100%;
+            background-color: rgba(26, 26, 26, 0.92);
+            backdrop-filter: blur(10px);
+            display: none;
+            z-index: 3000;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+        
+        .settings-panel {
+            background-color: transparent;
+            padding: 30px;
+            width: 100%;
+            height: 100%;
+            cursor: default; /* パネル内は通常のカーソル */
+        }
+        
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .settings-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+        }
+        
+        .close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* ヘッダーコントロール */
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        /* PC用：配置切り替えボタン */
+        .position-controls {
+            display: flex;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 6px;
+        }
+        
+        .position-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .position-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        
+        .position-btn.active {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+        
+        /* PC/スマホ表示切り替え */
+        .pc-only {
+            display: block;
+        }
+        
+        .mobile-only {
+            display: none;
+        }
+        
+        /* スマホ用：簡易設定 */
+        .mobile-settings {
+            padding: 20px 0;
+        }
+        
+        .size-buttons, .theme-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .size-btn, .theme-btn {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            color: #ccc;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .size-btn:hover, .theme-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #555;
+        }
+        
+        .size-btn.active, .theme-btn.active {
+            background: rgba(74, 144, 226, 0.3);
+            border-color: #4a90e2;
+            color: #fff;
+        }
+        
+        .theme-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .theme-preview {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        /* レスポンシブ: スマホ・タブレット */
+        /* レスポンシブ: スマホ・タブレット（画面幅） or mobile-modeクラス */
+        @media (max-width: 768px) {
+            .settings-modal {
+                width: 100%;
+                height: auto;
+                max-height: 70vh;
+                top: auto;
+                bottom: 0;
+                left: 0 !important;
+                right: 0 !important;
+                border-radius: 20px 20px 0 0;
+                cursor: default;
+            }
+            
+            .settings-header {
+                cursor: default;
+            }
+            
+            .pc-only {
+                display: none;
+            }
+            
+            .mobile-only {
+                display: block;
+            }
+            
+            /* スマホではマスクを非表示 */
+            .top-mask {
+                display: none !important;
+            }
+        }
+        
+        /* 手動でスマホモードに設定した場合 */
+        .settings-modal.mobile-mode {
+            width: 100%;
+            height: auto;
+            max-height: 70vh;
+            top: auto;
+            bottom: 0;
+            left: 0 !important;
+            right: 0 !important;
+            border-radius: 20px 20px 0 0;
+            cursor: default;
+        }
+        
+        .settings-modal.mobile-mode .settings-header {
+            cursor: default;
+        }
+        
+        .settings-modal.mobile-mode .pc-only {
+            display: none;
+        }
+        
+        .settings-modal.mobile-mode .mobile-only {
+            display: block;
+        }
+        
+        .settings-tabs {
+                display: block;
+            }
+        }
+        
+        .settings-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            color: #fff;
+            border-bottom-color: #007bff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .setting-group {
+            margin-bottom: 25px;
+        }
+        
+        .setting-label {
+            display: block;
+            color: #fff;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .setting-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        .setting-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .setting-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .setting-input {
+            width: 80px;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .setting-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .setting-unit {
+            color: #ccc;
+            font-size: 14px;
+            width: 30px;
+        }
+        
+        .setting-select {
+            width: 200px;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .setting-select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .color-input {
+            width: 60px;
+            height: 40px;
+            padding: 0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        .color-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        
+        .color-input::-webkit-color-swatch {
+            border: none;
+            border-radius: 3px;
+        }
+        
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* スマホテーマ管理 */
+        .mobile-theme-editor {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .theme-editor-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .color-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .color-picker {
+            width: 60px;
+            height: 40px;
+            padding: 0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        .color-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        
+        .color-picker::-webkit-color-swatch {
+            border: none;
+            border-radius: 3px;
+        }
+        
+        .color-text-input {
+            flex: 1;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        
+        .theme-preview-box {
+            margin-top: 15px;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #555;
+        }
+        
+        .preview-text {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        
+        .theme-management-info {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(74, 144, 226, 0.1);
+            border-left: 3px solid #4a90e2;
+            border-radius: 4px;
+        }
+        
+        .setting-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #007bff;
+        }
+        
+        .settings-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .preview-info {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .file-label:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <!-- 全画面表示インジケーター -->
+    <div id="fullscreenIndicator" class="fullscreen-indicator">
+        全画面モード (F11で終了)
+    </div>
+    
+    <div class="header">
+        <div class="status-bar">
+            <div class="connection-status">
+                <div id="statusIndicator" class="status-indicator"></div>
+                <span id="connectionText">接続中...</span>
+            </div>
+            <div class="font-controls">
+                <button id="settingsBtn" class="settings-btn">⚙️ 表示設定</button>
+            </div>
+            <div class="current-time" id="currentTime"></div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="text-display-area" id="textDisplayArea">
+            <div class="top-mask" id="topMask"></div>
+            <div class="text-lines" id="textLines"></div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        最終更新: 2024-11-28 03:45 JST
+    </div>
+
+    <!-- デバッグ情報 -->
+    <div class="debug-info" id="debugInfo">
+        行データ: 0行<br>
+        表示行数: 10行固定<br>
+        スクロール: なし<br>
+        アニメーション: 停止
+    </div>
+
+<!-- 設定パネル -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-panel">
+            <div class="settings-header">
+                <div>
+                    <h2 class="settings-title">表示設定</h2>
+                </div>
+                <div class="header-controls">
+                    <!-- PC用：配置切り替えボタン -->
+                    <div class="position-controls pc-only">
+                        <button class="position-btn" data-position="left" title="左寄せ">◀</button>
+                        <button class="position-btn" data-position="center" title="中央">◆</button>
+                        <button class="position-btn active" data-position="right" title="右寄せ">▶</button>
+                    </div>
+                    <button class="close-btn" id="closeBtn">×</button>
+                </div>
+            </div>
+            
+            <!-- スマホ用：簡易設定 -->
+            <div class="mobile-settings mobile-only">
+                <div class="setting-group">
+                    <label class="setting-label">フォントサイズ</label>
+                    <div class="size-buttons">
+                        <button class="size-btn" data-size="16">小</button>
+                        <button class="size-btn active" data-size="24">中</button>
+                        <button class="size-btn" data-size="32">大</button>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">カラーテーマ</label>
+                    <div class="theme-buttons">
+                        <button class="theme-btn active" data-theme="default">
+                            <div class="theme-preview" style="background: #000; color: #fff;">Aa</div>
+                            <span>標準</span>
+                        </button>
+                        <button class="theme-btn" data-theme="high-contrast">
+                            <div class="theme-preview" style="background: #000; color: #ffff00;">Aa</div>
+                            <span>高コントラスト</span>
+                        </button>
+                        <button class="theme-btn" data-theme="inverted">
+                            <div class="theme-preview" style="background: #fff; color: #000;">Aa</div>
+                            <span>反転</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PC用：詳細設定タブ -->
+            <div class="pc-settings pc-only">
+            <div class="settings-tabs">
+                <button class="tab-btn active" data-tab="display">表示</button>
+                <button class="tab-btn" data-tab="scroll">スクロール</button>
+                <button class="tab-btn" data-tab="mobile">スマホ表示</button>
+                <button class="tab-btn" data-tab="config">管理</button>
+            </div>
+            
+            <!-- 表示設定タブ -->
+            <div class="tab-content active" id="displayTab">
+                <div class="setting-group">
+                    <label class="setting-label">フォントサイズ</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="fontSizeSlider" min="12" max="48" value="20">
+                        <input type="number" class="setting-input" id="fontSizeInput" min="12" max="48" value="20">
+                        <span class="setting-unit">px</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">行間隔</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="lineHeightSlider" min="1.0" max="2.5" step="0.1" value="1.6">
+                        <input type="number" class="setting-input" id="lineHeightInput" min="1.0" max="2.5" step="0.1" value="1.6">
+                        <span class="setting-unit">倍</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">フォントフェイス</label>
+                    <div class="setting-row">
+                        <select class="setting-select" id="fontFamilySelect">
+                            <option value="system">システムフォント</option>
+                            <option value="hiragino">ヒラギノ角ゴ</option>
+                            <option value="yugothic">Yu Gothic</option>
+                            <option value="meiryo">メイリオ</option>
+                            <option value="msgothic">MS Gothic</option>
+                            <option value="noto">Noto Sans JP</option>
+                            <option value="roboto">Roboto</option>
+                            <option value="arial">Arial</option>
+                            <option value="helvetica">Helvetica</option>
+                            <option value="times">Times New Roman</option>
+                            <option value="georgia">Georgia</option>
+                            <option value="courier">Courier New</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">フォントスタイル</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="fontBoldCheck">
+                            <label for="fontBoldCheck">ボールド（太字）</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">強制的に半角→全角</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="fullWidthCheck">
+                            <label for="fullWidthCheck">半角文字を全角に変換</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">フォント色</label>
+                    <div class="setting-row">
+                        <input type="color" class="color-input" id="fontColorPicker" value="#ffffff">
+                        <input type="text" class="setting-input" id="fontColorInput" value="#ffffff" style="width: 100px;">
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">背景色</label>
+                    <div class="setting-row">
+                        <input type="color" class="color-input" id="bgColorPicker" value="#000000">
+                        <input type="text" class="setting-input" id="bgColorInput" value="#000000" style="width: 100px;">
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">マスク色</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="useBgColorForMaskCheck" checked>
+                            <label for="useBgColorForMaskCheck">背景色と同色</label>
+                        </div>
+                    </div>
+                    <div class="setting-row" id="maskColorControls">
+                        <input type="color" class="color-input" id="maskColorPicker" value="#000000">
+                        <input type="text" class="setting-input" id="maskColorInput" value="#000000" style="width: 100px;">
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ 表示エリア上部のマスク（字幕を隠す部分）の色を設定
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">全画面表示</label>
+                    <div class="setting-row">
+                        <button id="toggleFullscreenBtn" class="btn btn-primary" style="flex: 1;">
+                            全画面モード切り替え (F11)
+                        </button>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ ヘッダーとフッターを非表示にして、文字表示エリアのみを全画面表示します
+                    </div>
+                </div>
+            </div>
+            
+            <!-- スクロール設定タブ -->
+            <div class="tab-content" id="scrollTab">
+                <div class="setting-group">
+                    <label class="setting-label">スクロール速度（1行あたり）</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="scrollSpeedSlider" min="0.3" max="5.0" step="0.1" value="0.8">
+                        <input type="number" class="setting-input" id="scrollSpeedInput" min="0.1" max="10.0" step="0.1" value="0.8">
+                        <span class="setting-unit">秒</span>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ 値を大きくするとゆっくり、小さくすると速くなります。複数行が追加された場合も同じ速度で連続スクロールします。
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">表示エリア高さ</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="visibleHeightSlider" min="100" max="1000" step="10" value="300">
+                        <input type="number" class="setting-input" id="visibleHeightInput" min="50" max="2000" step="10" value="300">
+                        <span class="setting-unit">px</span>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ 字幕が表示される領域の高さをピクセルで指定します。上部はマスクで隠されます。
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">1行文字数制限</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="enableCharsPerLineCheck" checked>
+                            <label for="enableCharsPerLineCheck">1行文字数を制限する</label>
+                        </div>
+                    </div>
+                    <div class="setting-row" id="charsPerLineControls">
+                        <input type="range" class="setting-slider" id="charsPerLineSlider" min="10" max="80" value="30">
+                        <input type="number" class="setting-input" id="charsPerLineInput" min="1" max="99" value="30">
+                        <span class="setting-unit">文字</span>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ OFFの場合、画面幅に応じて自動折り返し（レスポンシブ）
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">改行処理</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="removeLineBreaksCheck">
+                            <label for="removeLineBreaksCheck">受信テキストの改行をすべて削除する</label>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #ccc;">強制改行文字</label>
+                        <input type="text" class="setting-input" id="forceLineBreakCharInput" value="●" style="width: 100px;">
+                        <span style="margin-left: 10px; font-size: 12px; color: #888;">※ この文字は改行として扱われます</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">表示エリアの余白</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="paddingSlider" min="0" max="100" step="5" value="30">
+                        <input type="number" class="setting-input" id="paddingInput" min="0" max="200" step="5" value="30">
+                        <span class="setting-unit">px</span>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ 字幕表示エリアの上下左右の余白を設定します
+                    </div>
+                </div>
+                
+                <div class="preview-info" id="previewInfo">
+                    現在の設定でプレビュー表示されています
+                </div>
+            </div>
+            
+            <!-- スマホテーマ管理タブ -->
+            <div class="tab-content" id="mobileTab">
+                <div class="theme-management-info">
+                    <p style="color: #ccc; margin-bottom: 20px; line-height: 1.6;">
+                        スマホ・タブレットで表示画面を開いた時に選択できる3つのカラーテーマを設定します。
+                    </p>
+                </div>
+                
+                <!-- テーマ1: 標準 -->
+                <div class="mobile-theme-editor">
+                    <h3 class="theme-editor-title">テーマ1: 標準</h3>
+                    <div class="setting-group">
+                        <label class="setting-label">文字色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme1FontColorPicker" value="#ffffff">
+                            <input type="text" class="color-text-input" id="theme1FontColorInput" value="#ffffff">
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">背景色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme1BgColorPicker" value="#000000">
+                            <input type="text" class="color-text-input" id="theme1BgColorInput" value="#000000">
+                        </div>
+                    </div>
+                    <div class="theme-preview-box" id="theme1Preview">
+                        <span class="preview-text">Aa</span>
+                    </div>
+                </div>
+                
+                <!-- テーマ2: 高コントラスト -->
+                <div class="mobile-theme-editor">
+                    <h3 class="theme-editor-title">テーマ2: 高コントラスト</h3>
+                    <div class="setting-group">
+                        <label class="setting-label">文字色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme2FontColorPicker" value="#ffff00">
+                            <input type="text" class="color-text-input" id="theme2FontColorInput" value="#ffff00">
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">背景色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme2BgColorPicker" value="#000000">
+                            <input type="text" class="color-text-input" id="theme2BgColorInput" value="#000000">
+                        </div>
+                    </div>
+                    <div class="theme-preview-box" id="theme2Preview">
+                        <span class="preview-text">Aa</span>
+                    </div>
+                </div>
+                
+                <!-- テーマ3: 反転 -->
+                <div class="mobile-theme-editor">
+                    <h3 class="theme-editor-title">テーマ3: 反転</h3>
+                    <div class="setting-group">
+                        <label class="setting-label">文字色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme3FontColorPicker" value="#000000">
+                            <input type="text" class="color-text-input" id="theme3FontColorInput" value="#000000">
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">背景色</label>
+                        <div class="color-input-group">
+                            <input type="color" class="color-picker" id="theme3BgColorPicker" value="#ffffff">
+                            <input type="text" class="color-text-input" id="theme3BgColorInput" value="#ffffff">
+                        </div>
+                    </div>
+                    <div class="theme-preview-box" id="theme3Preview">
+                        <span class="preview-text">Aa</span>
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button class="btn btn-secondary" id="resetMobileThemesBtn">🔄 デフォルトに戻す</button>
+                </div>
+            </div>
+            
+            <!-- 設定管理タブ -->
+            <div class="tab-content" id="configTab">
+                <div class="setting-group">
+                    <label class="setting-label">表示モード</label>
+                    <div class="setting-row">
+                        <select class="setting-select" id="displayModeSelect">
+                            <option value="auto">自動（タッチデバイス判定）</option>
+                            <option value="pc">PC用設定を使用</option>
+                            <option value="mobile">スマホ用設定を使用</option>
+                        </select>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ 自動: タッチ操作可能なデバイスでスマホ用表示<br>
+                        ※ PC: 画面幅に関わらず詳細設定を使用<br>
+                        ※ スマホ: 画面幅に関わらず簡易設定を使用
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">デバッグ情報</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="showDebugInfoCheck">
+                            <label for="showDebugInfoCheck">画面右上にデバッグ情報を表示</label>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #888;">
+                        ※ 行データ数、表示行数、スクロール状態などの情報を表示します
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">設定ファイル</label>
+                    <div class="setting-row">
+                        <label for="configFile" class="file-label">📁 設定を読み込み</label>
+                        <input type="file" class="file-input" id="configFile" accept=".json">
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button class="btn btn-primary" id="saveConfigBtn">💾 設定を保存</button>
+                    <button class="btn btn-secondary" id="downloadConfigBtn">📥 設定をダウンロード</button>
+                    <button class="btn btn-danger" id="resetConfigBtn">🔄 設定をリセット</button>
+                </div>
+            </div>
+            </div><!-- .pc-settings -->
+        </div>
+    </div>
+
+    <script>
+        console.log('=== 設定パネル機能付きdisplay.html 開始 ===');
+        
+        // DOM要素の取得
+        const statusIndicator = document.getElementById('statusIndicator');
+        const connectionText = document.getElementById('connectionText');
+        const textDisplayArea = document.getElementById('textDisplayArea');
+        const textLines = document.getElementById('textLines');
+        const topMask = document.getElementById('topMask');
+        const currentTime = document.getElementById('currentTime');
+        const debugInfo = document.getElementById('debugInfo');
+        
+        // 設定パネル要素
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeBtn = document.getElementById('closeBtn');
+        
+        // テキスト管理
+        let textLineArray = [];
+        let hasMessages = false;
+        let isAnimating = false;
+        
+        // グローバル変数に辞書を保存
+        let spacedNamesDictionary = [];
+        
+        // 設定オブジェクト
+        const settings = {
+            displayMode: 'auto',  // 'auto', 'pc', 'mobile'
+            fontSize: 20,
+            lineHeight: 1.6,
+            fontFamily: 'system',
+            fontBold: false,
+            fontColor: '#ffffff',
+            backgroundColor: '#000000',
+            maskColor: '#000000',  // マスク色
+            useBgColorForMask: true,  // 背景色をマスク色として使用
+            enableCharsPerLine: true,  // 1行文字数制限を有効にするか
+            maxCharsPerLine: 30,
+            visibleHeightPixels: 300,  // 表示エリアの高さ（ピクセル）
+            animationDuration: 0.8,
+            fullWidthMode: false,
+            showDebugInfo: false,
+            removeLineBreaks: false,
+            forceLineBreakChar: '●',
+            paddingPixels: 30,  // 余白（ピクセル）
+            mobileThemes: {
+                theme1: { fontColor: '#ffffff', backgroundColor: '#000000' },
+                theme2: { fontColor: '#ffff00', backgroundColor: '#000000' },
+                theme3: { fontColor: '#000000', backgroundColor: '#ffffff' }
+            }
+        };
+        
+        // デフォルト設定
+        const defaultSettings = JSON.parse(JSON.stringify(settings)); // ディープコピー
+        
+        // 表示モード判定関数
+        function isMobileUI() {
+            if (settings.displayMode === 'pc') {
+                return false;  // 強制的にPC用
+            } else if (settings.displayMode === 'mobile') {
+                return true;   // 強制的にスマホ用
+            } else {
+                // auto: タッチデバイス判定
+                const isTouchDevice = ('ontouchstart' in window) || 
+                                      (navigator.maxTouchPoints > 0) ||
+                                      (navigator.msMaxTouchPoints > 0);
+                return isTouchDevice;
+            }
+        }
+        
+        // 設定の読み込み
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('displaySettings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(settings, parsed);
+                    console.log('設定を読み込みました:', settings);
+                }
+            } catch (error) {
+                console.error('設定の読み込みに失敗:', error);
+            }
+        }
+        
+        // 設定の保存
+        function saveSettings() {
+            try {
+                localStorage.setItem('displaySettings', JSON.stringify(settings));
+                console.log('設定を保存しました:', settings);
+            } catch (error) {
+                console.error('設定の保存に失敗:', error);
+            }
+        }
+        
+        // 設定をUIに反映
+        function updateSettingsUI() {
+            // フォント設定
+            document.getElementById('fontSizeSlider').value = settings.fontSize;
+            document.getElementById('fontSizeInput').value = settings.fontSize;
+            document.getElementById('lineHeightSlider').value = settings.lineHeight;
+            document.getElementById('lineHeightInput').value = settings.lineHeight;
+            document.getElementById('fontFamilySelect').value = settings.fontFamily;
+            document.getElementById('fontBoldCheck').checked = settings.fontBold;
+            document.getElementById('fontColorPicker').value = settings.fontColor;
+            document.getElementById('fontColorInput').value = settings.fontColor;
+            document.getElementById('bgColorPicker').value = settings.backgroundColor;
+            document.getElementById('bgColorInput').value = settings.backgroundColor;
+            
+            // マスク色設定
+            const useBgColorForMaskCheck = document.getElementById('useBgColorForMaskCheck');
+            const maskColorControls = document.getElementById('maskColorControls');
+            const maskColorPicker = document.getElementById('maskColorPicker');
+            const maskColorInput = document.getElementById('maskColorInput');
+            
+            useBgColorForMaskCheck.checked = settings.useBgColorForMask !== false; // デフォルトtrue
+            maskColorPicker.value = settings.maskColor || settings.backgroundColor;
+            maskColorInput.value = settings.maskColor || settings.backgroundColor;
+            maskColorPicker.disabled = useBgColorForMaskCheck.checked;
+            maskColorInput.disabled = useBgColorForMaskCheck.checked;
+            maskColorControls.style.opacity = useBgColorForMaskCheck.checked ? '0.5' : '1';
+            
+            // スクロール設定
+            document.getElementById('scrollSpeedSlider').value = settings.animationDuration;
+            document.getElementById('scrollSpeedInput').value = settings.animationDuration;
+            document.getElementById('visibleHeightSlider').value = settings.visibleHeightPixels;
+            document.getElementById('visibleHeightInput').value = settings.visibleHeightPixels;
+            
+            // 1行文字数制限
+            const enableCharsPerLineCheck = document.getElementById('enableCharsPerLineCheck');
+            const charsPerLineControls = document.getElementById('charsPerLineControls');
+            const charsPerLineSlider = document.getElementById('charsPerLineSlider');
+            const charsPerLineInput = document.getElementById('charsPerLineInput');
+            
+            enableCharsPerLineCheck.checked = settings.enableCharsPerLine !== false; // デフォルトtrue
+            charsPerLineSlider.value = settings.maxCharsPerLine;
+            charsPerLineInput.value = settings.maxCharsPerLine;
+            charsPerLineSlider.disabled = !enableCharsPerLineCheck.checked;
+            charsPerLineInput.disabled = !enableCharsPerLineCheck.checked;
+            charsPerLineControls.style.opacity = enableCharsPerLineCheck.checked ? '1' : '0.5';
+            
+            // 全角変換設定
+            document.getElementById('fullWidthCheck').checked = settings.fullWidthMode;
+            
+            // 表示モード設定
+            const displayModeSelect = document.getElementById('displayModeSelect');
+            if (displayModeSelect) {
+                displayModeSelect.value = settings.displayMode || 'auto';
+            }
+            
+            // デバッグ情報表示設定
+            document.getElementById('showDebugInfoCheck').checked = settings.showDebugInfo;
+            
+            // 改行処理設定
+            document.getElementById('removeLineBreaksCheck').checked = settings.removeLineBreaks;
+            document.getElementById('forceLineBreakCharInput').value = settings.forceLineBreakChar;
+            
+            // 余白設定
+            document.getElementById('paddingSlider').value = settings.paddingPixels;
+            document.getElementById('paddingInput').value = settings.paddingPixels;
+            
+            // スマホテーマ設定
+            if (settings.mobileThemes) {
+                document.getElementById('theme1FontColorPicker').value = settings.mobileThemes.theme1.fontColor;
+                document.getElementById('theme1FontColorInput').value = settings.mobileThemes.theme1.fontColor;
+                document.getElementById('theme1BgColorPicker').value = settings.mobileThemes.theme1.backgroundColor;
+                document.getElementById('theme1BgColorInput').value = settings.mobileThemes.theme1.backgroundColor;
+                
+                document.getElementById('theme2FontColorPicker').value = settings.mobileThemes.theme2.fontColor;
+                document.getElementById('theme2FontColorInput').value = settings.mobileThemes.theme2.fontColor;
+                document.getElementById('theme2BgColorPicker').value = settings.mobileThemes.theme2.backgroundColor;
+                document.getElementById('theme2BgColorInput').value = settings.mobileThemes.theme2.backgroundColor;
+                
+                document.getElementById('theme3FontColorPicker').value = settings.mobileThemes.theme3.fontColor;
+                document.getElementById('theme3FontColorInput').value = settings.mobileThemes.theme3.fontColor;
+                document.getElementById('theme3BgColorPicker').value = settings.mobileThemes.theme3.backgroundColor;
+                document.getElementById('theme3BgColorInput').value = settings.mobileThemes.theme3.backgroundColor;
+                
+                // プレビュー更新
+                for (let i = 1; i <= 3; i++) {
+                    const themeKey = `theme${i}`;
+                    const preview = document.getElementById(`theme${i}Preview`);
+                    const theme = settings.mobileThemes[themeKey];
+                    preview.style.backgroundColor = theme.backgroundColor;
+                    preview.style.color = theme.fontColor;
+                }
+            }
+        }
+        
+        // フォントファミリーのマッピング
+        const fontFamilyMap = {
+            system: '"Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic Medium", "Meiryo", "MS Gothic", sans-serif',
+            hiragino: '"Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif',
+            yugothic: '"Yu Gothic Medium", "Yu Gothic", "YuGothic", sans-serif',
+            meiryo: '"Meiryo", "メイリオ", sans-serif',
+            msgothic: '"MS Gothic", "ＭＳ ゴシック", monospace',
+            noto: '"Noto Sans JP", sans-serif',
+            roboto: '"Roboto", sans-serif',
+            arial: '"Arial", sans-serif',
+            helvetica: '"Helvetica Neue", "Helvetica", sans-serif',
+            times: '"Times New Roman", "Times", serif',
+            georgia: '"Georgia", serif',
+            courier: '"Courier New", "Courier", monospace'
+        };
+        
+        // 表示モードを適用（PC用 vs スマホ用）
+        function applyDisplayMode() {
+            const isMobile = isMobileUI();
+            const settingsModal = document.getElementById('settingsModal');
+            const topMask = document.getElementById('topMask');
+            
+            if (isMobile) {
+                // スマホ用表示
+                settingsModal.classList.add('mobile-mode');
+                if (topMask) topMask.style.display = 'none';
+            } else {
+                // PC用表示
+                settingsModal.classList.remove('mobile-mode');
+                if (topMask) topMask.style.display = '';
+            }
+            
+            console.log('表示モード適用:', isMobile ? 'スマホ用' : 'PC用');
+        }
+        
+        // 表示スタイルを更新
+        function updateDisplayStyle() {
+            // フォント設定
+            textLines.style.fontSize = settings.fontSize + 'px';
+            textLines.style.lineHeight = settings.lineHeight;
+            textLines.style.fontFamily = fontFamilyMap[settings.fontFamily] || fontFamilyMap.system;
+            textLines.style.fontWeight = settings.fontBold ? 'bold' : 'normal';
+            textLines.style.color = settings.fontColor;
+            
+            // 背景色
+            document.body.style.backgroundColor = settings.backgroundColor;
+            textDisplayArea.style.backgroundColor = settings.backgroundColor;
+            
+            // マスク色（背景色と同色か、個別設定か）
+            if (settings.useBgColorForMask) {
+                topMask.style.backgroundColor = settings.backgroundColor;
+            } else {
+                topMask.style.backgroundColor = settings.maskColor;
+            }
+            
+            // 余白設定
+            textDisplayArea.style.padding = `${settings.paddingPixels}px`;
+            
+            // 上部マスクの高さを更新（表示行数制御）
+            updateTopMask();
+            
+            // スクロールアニメーションの時間も更新
+            textLines.style.transition = `transform ${settings.animationDuration}s linear`;
+            
+            // デバッグ情報の表示/非表示
+            debugInfo.style.display = settings.showDebugInfo ? 'block' : 'none';
+            
+            console.log('表示スタイルを更新:', {
+                fontSize: settings.fontSize,
+                lineHeight: settings.lineHeight,
+                fontFamily: settings.fontFamily,
+                fontBold: settings.fontBold,
+                fontColor: settings.fontColor,
+                backgroundColor: settings.backgroundColor,
+                visibleHeightPixels: settings.visibleHeightPixels,
+                animationDuration: settings.animationDuration,
+                showDebugInfo: settings.showDebugInfo
+            });
+        }
+        
+        // 上部マスクの高さを更新
+        function updateTopMask() {
+            // text-display-areaの実際の高さを取得
+            const containerHeight = textDisplayArea.clientHeight;
+            
+            // 表示したい高さ（設定値）
+            const visibleHeight = settings.visibleHeightPixels;
+            
+            // マスクの高さ = コンテナ全体の高さ - 表示したい高さ
+            const maskHeight = Math.max(0, containerHeight - visibleHeight);
+            
+            topMask.style.height = `${maskHeight}px`;
+            
+            console.log(`マスク更新: コンテナ${containerHeight}px - 表示${visibleHeight}px = マスク${maskHeight}px`);
+        }
+        
+        // 設定パネルの初期化
+        function initSettingsPanel() {
+            // タブ切り替え
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.getAttribute('data-tab');
+                    
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    btn.classList.add('active');
+                    document.getElementById(targetTab + 'Tab').classList.add('active');
+                });
+            });
+            
+            // 設定値の同期関数
+            function syncSliderInput(sliderId, inputId, settingKey) {
+                const slider = document.getElementById(sliderId);
+                const input = document.getElementById(inputId);
+                
+                slider.addEventListener('input', () => {
+                    const value = parseFloat(slider.value);
+                    input.value = value;
+                    settings[settingKey] = value;
+                    updateDisplayStyle();
+                    saveSettings();
+                });
+                
+                input.addEventListener('change', () => {
+                    const value = parseFloat(input.value);
+                    if (!isNaN(value)) {
+                        slider.value = value;
+                        settings[settingKey] = value;
+                        updateDisplayStyle();
+                        saveSettings();
+                    }
+                });
+            }
+            
+            // 各設定の同期
+            syncSliderInput('fontSizeSlider', 'fontSizeInput', 'fontSize');
+            syncSliderInput('lineHeightSlider', 'lineHeightInput', 'lineHeight');
+            syncSliderInput('scrollSpeedSlider', 'scrollSpeedInput', 'animationDuration');
+            syncSliderInput('visibleHeightSlider', 'visibleHeightInput', 'visibleHeightPixels');
+            syncSliderInput('charsPerLineSlider', 'charsPerLineInput', 'maxCharsPerLine');
+            syncSliderInput('paddingSlider', 'paddingInput', 'paddingPixels');
+            
+            // フォントフェイス選択
+            document.getElementById('fontFamilySelect').addEventListener('change', (e) => {
+                settings.fontFamily = e.target.value;
+                updateDisplayStyle();
+                saveSettings();
+            });
+            
+            // ボールド設定
+            document.getElementById('fontBoldCheck').addEventListener('change', (e) => {
+                settings.fontBold = e.target.checked;
+                updateDisplayStyle();
+                saveSettings();
+            });
+            
+            // 1行文字数制限のON/OFF
+            const enableCharsPerLineCheck = document.getElementById('enableCharsPerLineCheck');
+            const charsPerLineControls = document.getElementById('charsPerLineControls');
+            
+            enableCharsPerLineCheck.addEventListener('change', (e) => {
+                settings.enableCharsPerLine = e.target.checked;
+                
+                // スライダーの有効/無効を切り替え
+                const slider = document.getElementById('charsPerLineSlider');
+                const input = document.getElementById('charsPerLineInput');
+                slider.disabled = !e.target.checked;
+                input.disabled = !e.target.checked;
+                
+                // スタイル更新
+                if (e.target.checked) {
+                    charsPerLineControls.style.opacity = '1';
+                } else {
+                    charsPerLineControls.style.opacity = '0.5';
+                }
+                
+                updateDisplayStyle();
+                saveSettings();
+            });
+            
+            // フォント色設定
+            function syncColorInputs(pickerId, inputId, settingKey) {
+                const picker = document.getElementById(pickerId);
+                const input = document.getElementById(inputId);
+                
+                picker.addEventListener('input', () => {
+                    const color = picker.value;
+                    input.value = color;
+                    settings[settingKey] = color;
+                    updateDisplayStyle();
+                    saveSettings();
+                });
+                
+                input.addEventListener('change', () => {
+                    const color = input.value;
+                    if (/^#[0-9A-F]{6}$/i.test(color)) {
+                        picker.value = color;
+                        settings[settingKey] = color;
+                        updateDisplayStyle();
+                        saveSettings();
+                    }
+                });
+            }
+            
+            syncColorInputs('fontColorPicker', 'fontColorInput', 'fontColor');
+            syncColorInputs('bgColorPicker', 'bgColorInput', 'backgroundColor');
+            syncColorInputs('maskColorPicker', 'maskColorInput', 'maskColor');
+            
+            // マスク色の「背景色と同色」チェックボックス
+            const useBgColorForMaskCheck = document.getElementById('useBgColorForMaskCheck');
+            const maskColorControls = document.getElementById('maskColorControls');
+            
+            useBgColorForMaskCheck.addEventListener('change', (e) => {
+                settings.useBgColorForMask = e.target.checked;
+                
+                // カラーピッカーの有効/無効を切り替え
+                const maskColorPicker = document.getElementById('maskColorPicker');
+                const maskColorInput = document.getElementById('maskColorInput');
+                maskColorPicker.disabled = e.target.checked;
+                maskColorInput.disabled = e.target.checked;
+                
+                // スタイル更新
+                if (e.target.checked) {
+                    maskColorControls.style.opacity = '0.5';
+                } else {
+                    maskColorControls.style.opacity = '1';
+                }
+                
+                updateDisplayStyle();
+                saveSettings();
+            });
+            
+            // 全角変換モード設定
+            document.getElementById('fullWidthCheck').addEventListener('change', (e) => {
+                settings.fullWidthMode = e.target.checked;
+                saveSettings();
+                
+                // 既存テキストにも適用する場合は再描画
+                if (textLineArray.length > 0) {
+                    updateDisplay();
+                }
+            });
+            
+            // 表示モード選択
+            document.getElementById('displayModeSelect').addEventListener('change', (e) => {
+                settings.displayMode = e.target.value;
+                saveSettings();
+                applyDisplayMode();
+                console.log('表示モード変更:', settings.displayMode);
+            });
+            
+            // デバッグ情報表示の切り替え
+            document.getElementById('showDebugInfoCheck').addEventListener('change', (e) => {
+                settings.showDebugInfo = e.target.checked;
+                debugInfo.style.display = settings.showDebugInfo ? 'block' : 'none';
+                saveSettings();
+            });
+            
+            // 改行処理設定の切り替え
+            document.getElementById('removeLineBreaksCheck').addEventListener('change', (e) => {
+                settings.removeLineBreaks = e.target.checked;
+                saveSettings();
+                console.log('改行削除設定:', settings.removeLineBreaks);
+            });
+            
+            document.getElementById('forceLineBreakCharInput').addEventListener('input', (e) => {
+                settings.forceLineBreakChar = e.target.value;
+                saveSettings();
+                console.log('強制改行文字:', settings.forceLineBreakChar);
+            });
+            
+            // 設定ファイルの読み込み
+            document.getElementById('configFile').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const config = JSON.parse(e.target.result);
+                            Object.assign(settings, config);
+                            updateSettingsUI();
+                            updateDisplayStyle();
+                            saveSettings();
+                            alert('設定を読み込みました');
+                        } catch (error) {
+                            alert('設定ファイルの読み込みに失敗しました');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+            
+            // 設定の保存
+            document.getElementById('saveConfigBtn').addEventListener('click', () => {
+                saveSettings();
+                alert('設定を保存しました');
+            });
+            
+            // 設定のダウンロード
+            document.getElementById('downloadConfigBtn').addEventListener('click', () => {
+                const config = JSON.stringify(settings, null, 2);
+                const blob = new Blob([config], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'display_settings.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+            
+            // スマホテーマ管理
+            function initMobileThemeEditor() {
+                // カラーピッカーとテキスト入力の同期
+                function syncThemeColor(themeNum, colorType) {
+                    const pickerId = `theme${themeNum}${colorType}ColorPicker`;
+                    const inputId = `theme${themeNum}${colorType}ColorInput`;
+                    const picker = document.getElementById(pickerId);
+                    const input = document.getElementById(inputId);
+                    
+                    picker.addEventListener('input', () => {
+                        const color = picker.value;
+                        input.value = color;
+                        updateThemeSettings(themeNum, colorType, color);
+                    });
+                    
+                    input.addEventListener('change', () => {
+                        const color = input.value;
+                        if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                            picker.value = color;
+                            updateThemeSettings(themeNum, colorType, color);
+                        }
+                    });
+                }
+                
+                function updateThemeSettings(themeNum, colorType, color) {
+                    const themeKey = `theme${themeNum}`;
+                    const colorKey = colorType === 'Font' ? 'fontColor' : 'backgroundColor';
+                    settings.mobileThemes[themeKey][colorKey] = color;
+                    updateThemePreview(themeNum);
+                    saveSettings();
+                    updateMobileThemes(); // スマホUIに反映
+                }
+                
+                function updateThemePreview(themeNum) {
+                    const themeKey = `theme${themeNum}`;
+                    const preview = document.getElementById(`theme${themeNum}Preview`);
+                    const theme = settings.mobileThemes[themeKey];
+                    preview.style.backgroundColor = theme.backgroundColor;
+                    preview.style.color = theme.fontColor;
+                }
+                
+                // 各テーマのカラーピッカーを初期化
+                for (let i = 1; i <= 3; i++) {
+                    syncThemeColor(i, 'Font');
+                    syncThemeColor(i, 'Bg');
+                    updateThemePreview(i);
+                }
+            }
+            
+            // スマホUIのテーマボタンを更新
+            function updateMobileThemes() {
+                const themesData = {
+                    default: settings.mobileThemes.theme1,
+                    'high-contrast': settings.mobileThemes.theme2,
+                    inverted: settings.mobileThemes.theme3
+                };
+                
+                // グローバル変数を更新（スマホUIで使用）
+                window.mobileThemesData = themesData;
+            }
+            
+            // スマホテーマをデフォルトに戻す
+            document.getElementById('resetMobileThemesBtn').addEventListener('click', () => {
+                if (confirm('スマホテーマをデフォルトに戻しますか？')) {
+                    settings.mobileThemes = JSON.parse(JSON.stringify(defaultSettings.mobileThemes));
+                    
+                    // UIを更新
+                    document.getElementById('theme1FontColorPicker').value = settings.mobileThemes.theme1.fontColor;
+                    document.getElementById('theme1FontColorInput').value = settings.mobileThemes.theme1.fontColor;
+                    document.getElementById('theme1BgColorPicker').value = settings.mobileThemes.theme1.backgroundColor;
+                    document.getElementById('theme1BgColorInput').value = settings.mobileThemes.theme1.backgroundColor;
+                    
+                    document.getElementById('theme2FontColorPicker').value = settings.mobileThemes.theme2.fontColor;
+                    document.getElementById('theme2FontColorInput').value = settings.mobileThemes.theme2.fontColor;
+                    document.getElementById('theme2BgColorPicker').value = settings.mobileThemes.theme2.backgroundColor;
+                    document.getElementById('theme2BgColorInput').value = settings.mobileThemes.theme2.backgroundColor;
+                    
+                    document.getElementById('theme3FontColorPicker').value = settings.mobileThemes.theme3.fontColor;
+                    document.getElementById('theme3FontColorInput').value = settings.mobileThemes.theme3.fontColor;
+                    document.getElementById('theme3BgColorPicker').value = settings.mobileThemes.theme3.backgroundColor;
+                    document.getElementById('theme3BgColorInput').value = settings.mobileThemes.theme3.backgroundColor;
+                    
+                    for (let i = 1; i <= 3; i++) {
+                        updateThemePreview(i);
+                    }
+                    
+                    saveSettings();
+                    updateMobileThemes();
+                    alert('スマホテーマをデフォルトに戻しました');
+                }
+            });
+            
+            initMobileThemeEditor();
+            updateMobileThemes();
+            
+            // 設定のリセット
+            document.getElementById('resetConfigBtn').addEventListener('click', () => {
+                if (confirm('設定をリセットしますか？')) {
+                    Object.assign(settings, defaultSettings);
+                    updateSettingsUI();
+                    updateDisplayStyle();
+                    saveSettings();
+                    alert('設定をリセットしました');
+                }
+            });
+        }
+        
+        // パネルの表示/非表示
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'block';
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+        
+        // 配置切り替え機能（PC用）
+        let modalPosition = 'right'; // 'left', 'center', 'right'
+        
+        function loadModalPosition() {
+            try {
+                const saved = localStorage.getItem('settingsModalPosition');
+                if (saved) {
+                    modalPosition = saved;
+                } else {
+                    modalPosition = 'right';
+                }
+                setModalPosition(modalPosition);
+            } catch (error) {
+                console.error('設定モーダル位置の読み込みエラー:', error);
+            }
+        }
+        
+        function saveModalPosition() {
+            try {
+                localStorage.setItem('settingsModalPosition', modalPosition);
+            } catch (error) {
+                console.error('設定モーダル位置の保存エラー:', error);
+            }
+        }
+        
+        function setModalPosition(position) {
+            const modal = settingsModal;
+            modal.style.left = 'auto';
+            modal.style.right = 'auto';
+            modal.style.top = '0';
+            
+            if (position === 'left') {
+                modal.style.left = '0';
+            } else if (position === 'center') {
+                modal.style.left = '50%';
+                modal.style.transform = 'translateX(-50%)';
+            } else { // right
+                modal.style.right = '0';
+                modal.style.transform = 'none';
+            }
+            
+            // ボタンのアクティブ状態を更新
+            document.querySelectorAll('.position-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.position === position);
+            });
+        }
+        
+        // 配置ボタンのクリックイベント
+        document.querySelectorAll('.position-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modalPosition = btn.dataset.position;
+                setModalPosition(modalPosition);
+                saveModalPosition();
+            });
+        });
+        
+        // 初期位置を読み込み
+        loadModalPosition();
+        
+        // スマホ用：フォントサイズボタン
+        document.querySelectorAll('.size-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const size = parseInt(btn.dataset.size);
+                settings.fontSize = size;
+                updateDisplayStyle();
+                saveSettings();
+                
+                // アクティブ状態を更新
+                document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+        
+        // スマホ用：カラーテーマボタン
+        function getThemesData() {
+            // PC用設定から取得、なければデフォルト
+            if (settings.mobileThemes) {
+                return {
+                    default: settings.mobileThemes.theme1,
+                    'high-contrast': settings.mobileThemes.theme2,
+                    inverted: settings.mobileThemes.theme3
+                };
+            } else {
+                return {
+                    default: { fontColor: '#ffffff', backgroundColor: '#000000' },
+                    'high-contrast': { fontColor: '#ffff00', backgroundColor: '#000000' },
+                    inverted: { fontColor: '#000000', backgroundColor: '#ffffff' }
+                };
+            }
+        }
+        
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const theme = btn.dataset.theme;
+                const themes = getThemesData();
+                const colors = themes[theme];
+                
+                settings.fontColor = colors.fontColor;
+                settings.backgroundColor = colors.backgroundColor;
+                updateDisplayStyle();
+                saveSettings();
+                
+                // アクティブ状態を更新
+                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+        
+        // ショートカットキーで設定パネルを開閉（Ctrl+, または Cmd+,）
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+, または Cmd+, （macOS）
+            if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+                e.preventDefault();
+                // 設定パネルの表示を切り替え
+                if (settingsModal.style.display === 'block') {
+                    settingsModal.style.display = 'none';
+                    console.log('設定パネルを閉じました（ショートカットキー）');
+                } else {
+                    settingsModal.style.display = 'block';
+                    console.log('設定パネルを開きました（ショートカットキー: Ctrl+, または Cmd+,）');
+                }
+            }
+        });
+        
+        // 全画面表示ボタン
+        const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
+        toggleFullscreenBtn.addEventListener('click', () => {
+            toggleFullscreenMode();
+            settingsModal.style.display = 'none';
+        });
+        
+        // 現在時刻の表示更新
+        function updateCurrentTime() {
+            const now = new Date();
+            currentTime.textContent = now.toLocaleTimeString('ja-JP');
+        }
+        
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+        
+        // デバッグ情報更新
+        function updateDebugInfo() {
+            const totalLines = textLineArray.length;
+            const visibleLines = Math.min(totalLines, settings.maxVisibleLines);
+            const needsScroll = totalLines > settings.maxVisibleLines;
+            const animStatus = isAnimating ? '実行中' : '停止';
+            
+            debugInfo.innerHTML = `行データ: ${totalLines}行<br>表示行数: ${visibleLines}/${settings.maxVisibleLines}行<br>スクロール: ${needsScroll ? 'あり' : 'なし'}<br>アニメーション: ${animStatus}`;
+        }
+        
+        // 全角文字判定
+        function isFullWidth(char) {
+            const code = char.charCodeAt(0);
+            return (code >= 0x3000 && code <= 0x9FAF) || 
+                   (code >= 0xFF01 && code <= 0xFF5E) || 
+                   (code >= 0xFF61 && code <= 0xFF9F);
+        }
+        
+        // TSV辞書ファイルの読み込み
+        async function loadSpacedNamesDictionary() {
+            try {
+                const response = await fetch('/spaced-names-dictionary.tsv');
+                const tsvText = await response.text();
+                
+                // TSVをパース
+                const lines = tsvText.trim().split('\n');
+                const headers = lines[0].split('\t'); // ヘッダー行をスキップ
+                
+                spacedNamesDictionary = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const columns = lines[i].split('\t');
+                    if (columns.length >= 2) {
+                        const category = columns[0].trim();
+                        const name = columns[1].trim();
+                        spacedNamesDictionary.push(name);
+                    }
+                }
+                
+                console.log(`スペース付き固有名詞辞書を読み込み: ${spacedNamesDictionary.length}件`);
+                
+            } catch (error) {
+                console.error('辞書ファイルの読み込み失敗:', error);
+                // フォールバック: 基本的な名詞のみ
+                spacedNamesDictionary = [
+                    'ニュー ヨーク',
+                    'ドナルド トランプ',
+                    'マイクロソフト オフィス'
+                ];
+            }
+        }
+        
+        // 修正されたクリーンアップ関数
+        function cleanupSpeechText(text) {
+            // 辞書が読み込まれていない場合は基本処理のみ
+            if (spacedNamesDictionary.length === 0) {
+                return basicCleanup(text);
+            }
+            
+            // 正当なスペース付き名詞を一時的に保護
+            const protected = [];
+            let protectedText = text;
+            
+            spacedNamesDictionary.forEach((name, index) => {
+                const placeholder = `__PROTECTED_${index}__`;
+                if (protectedText.includes(name)) {
+                    protected[index] = name;
+                    protectedText = protectedText.replace(new RegExp(escapeRegex(name), 'g'), placeholder);
+                }
+            });
+            
+            // 通常のクリーンアップを実行
+            let cleaned = basicCleanup(protectedText);
+            
+            // 保護した名詞を復元
+            protected.forEach((name, index) => {
+                if (name) {
+                    cleaned = cleaned.replace(`__PROTECTED_${index}__`, name);
+                }
+            });
+            
+            console.log('テキストクリーンアップ:', {
+                original: text.substring(0, 50) + '...',
+                cleaned: cleaned.substring(0, 50) + '...'
+            });
+            
+            return cleaned;
+        }
+        
+        // 基本的なクリーンアップ処理
+        function basicCleanup(text) {
+            let cleaned = text;
+            cleaned = cleaned.replace(/([ぁ-んァ-ヿ一-龯]) +([a-zA-Z0-9])/g, '$1$2');
+            cleaned = cleaned.replace(/([a-zA-Z0-9]) +([ぁ-んァ-ヿ一-龯])/g, '$1$2');
+            cleaned = cleaned.replace(/([ぁ-んァ-ヿ一-龯]) +([ぁ-んァ-ヿ一-龯])/g, '$1$2');
+            return cleaned;
+        }
+        
+        // 正規表現エスケープ
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        
+        // 半角文字を全角に変換（半角カナ対応版）
+        function convertToFullWidth(text) {
+            // 半角カナから全角カナへの変換マップ
+            const halfToFullKanaMap = {
+                'ｱ': 'ア', 'ｲ': 'イ', 'ｳ': 'ウ', 'ｴ': 'エ', 'ｵ': 'オ',
+                'ｶ': 'カ', 'ｷ': 'キ', 'ｸ': 'ク', 'ｹ': 'ケ', 'ｺ': 'コ',
+                'ｻ': 'サ', 'ｼ': 'シ', 'ｽ': 'ス', 'ｾ': 'セ', 'ｿ': 'ソ',
+                'ﾀ': 'タ', 'ﾁ': 'チ', 'ﾂ': 'ツ', 'ﾃ': 'テ', 'ﾄ': 'ト',
+                'ﾅ': 'ナ', 'ﾆ': 'ニ', 'ﾇ': 'ヌ', 'ﾈ': 'ネ', 'ﾉ': 'ノ',
+                'ﾊ': 'ハ', 'ﾋ': 'ヒ', 'ﾌ': 'フ', 'ﾍ': 'ヘ', 'ﾎ': 'ホ',
+                'ﾏ': 'マ', 'ﾐ': 'ミ', 'ﾑ': 'ム', 'ﾒ': 'メ', 'ﾓ': 'モ',
+                'ﾔ': 'ヤ', 'ﾕ': 'ユ', 'ﾖ': 'ヨ',
+                'ﾗ': 'ラ', 'ﾘ': 'リ', 'ﾙ': 'ル', 'ﾚ': 'レ', 'ﾛ': 'ロ',
+                'ﾜ': 'ワ', 'ｦ': 'ヲ', 'ﾝ': 'ン',
+                'ｧ': 'ァ', 'ｨ': 'ィ', 'ｩ': 'ゥ', 'ｪ': 'ェ', 'ｫ': 'ォ',
+                'ｬ': 'ャ', 'ｭ': 'ュ', 'ｮ': 'ョ', 'ｯ': 'ッ',
+                '｡': '。', '｢': '「', '｣': '」', '､': '、', '･': '・',
+                'ﾞ': '゛', 'ﾟ': '゜'
+            };
+            
+            let converted = text;
+            
+            // 1. 半角カナの濁音・半濁音を先に処理
+            converted = converted.replace(/(ｶ|ｷ|ｸ|ｹ|ｺ|ｻ|ｼ|ｽ|ｾ|ｿ|ﾀ|ﾁ|ﾂ|ﾃ|ﾄ|ﾊ|ﾋ|ﾌ|ﾍ|ﾎ)ﾞ/g, function(match, char) {
+                const dakutenMap = {
+                    'ｶ': 'ガ', 'ｷ': 'ギ', 'ｸ': 'グ', 'ｹ': 'ゲ', 'ｺ': 'ゴ',
+                    'ｻ': 'ザ', 'ｼ': 'ジ', 'ｽ': 'ズ', 'ｾ': 'ゼ', 'ｿ': 'ゾ',
+                    'ﾀ': 'ダ', 'ﾁ': 'ヂ', 'ﾂ': 'ヅ', 'ﾃ': 'デ', 'ﾄ': 'ド',
+                    'ﾊ': 'バ', 'ﾋ': 'ビ', 'ﾌ': 'ブ', 'ﾍ': 'ベ', 'ﾎ': 'ボ'
+                };
+                return dakutenMap[char] || match;
+            });
+            
+            converted = converted.replace(/(ﾊ|ﾋ|ﾌ|ﾍ|ﾎ)ﾟ/g, function(match, char) {
+                const handakutenMap = {
+                    'ﾊ': 'パ', 'ﾋ': 'ピ', 'ﾌ': 'プ', 'ﾍ': 'ペ', 'ﾎ': 'ポ'
+                };
+                return handakutenMap[char] || match;
+            });
+            
+            // 2. 残りの半角カナを全角カナに変換
+            converted = converted.replace(/[ｦ-ﾟ]/g, function(char) {
+                return halfToFullKanaMap[char] || char;
+            });
+            
+            // 3. ASCII文字（英数字記号）を全角に変換
+            converted = converted.replace(/[!-~]/g, function(char) {
+                return String.fromCharCode(char.charCodeAt(0) + 0xFEE0);
+            });
+            
+            return converted;
+        }
+        
+        // テキストを行に分割
+        // 改良版: 単語境界を考慮した改行処理
+        function splitTextIntoLines(text) {
+            const lines = text.split('\n');
+            const resultLines = [];
+            
+            // スマホ・タブレット判定（タッチデバイス or 手動設定）
+            const isMobile = isMobileUI();
+            
+            for (const line of lines) {
+                if (line.length === 0) {
+                    resultLines.push('');
+                    continue;
+                }
+                
+                // スマホの場合、または1行文字数制限がOFFの場合は改行処理をスキップ（レスポンシブ）
+                if (isMobile || !settings.enableCharsPerLine) {
+                    resultLines.push(line);
+                } else {
+                    // 改行処理を実行
+                    const brokenLines = smartLineBreak(line, settings.maxCharsPerLine);
+                    resultLines.push(...brokenLines);
+                }
+            }
+            
+            return resultLines;
+        }
+        
+        // スマート改行処理のメイン関数
+        function smartLineBreak(text, maxCharsPerLine) {
+            const maxWidth = maxCharsPerLine * 2; // 全角基準
+            const segments = tokenizeText(text);
+            const resultLines = [];
+            let currentLine = '';
+            let currentWidth = 0;
+            
+            for (const segment of segments) {
+                const segmentWidth = calculateTextWidth(segment.text);
+                
+                // 英数字の単語の場合は単語単位で改行を判断
+                if (segment.type === 'word' || segment.type === 'unit') {
+                    if (currentWidth + segmentWidth <= maxWidth) {
+                        // 現在の行に収まる場合は追加
+                        currentLine += segment.text;
+                        currentWidth += segmentWidth;
+                    } else {
+                        // 現在の行に収まらない場合
+                        if (currentLine.trim()) {
+                            resultLines.push(currentLine.trim());
+                        }
+                        
+                        // セグメントが1行の幅を超える場合は文字単位で分割
+                        if (segmentWidth > maxWidth) {
+                            const forceBrokenLines = forceBreakLongSegment(segment.text, maxWidth);
+                            resultLines.push(...forceBrokenLines.slice(0, -1));
+                            
+                            const lastLine = forceBrokenLines[forceBrokenLines.length - 1];
+                            currentLine = lastLine;
+                            currentWidth = calculateTextWidth(lastLine);
+                        } else {
+                            // セグメント全体を次の行に
+                            currentLine = segment.text;
+                            currentWidth = segmentWidth;
+                        }
+                    }
+                } else {
+                    // 日本語やスペースの場合は文字単位で自由に折り返す
+                    for (const char of segment.text) {
+                        const charWidth = isFullWidth(char) ? 2 : 1;
+                        
+                        if (currentWidth + charWidth <= maxWidth) {
+                            currentLine += char;
+                            currentWidth += charWidth;
+                        } else {
+                            // 行が満杯になったら改行
+                            if (currentLine.trim()) {
+                                resultLines.push(currentLine.trim());
+                            }
+                            currentLine = char;
+                            currentWidth = charWidth;
+                        }
+                    }
+                }
+            }
+            
+            if (currentLine.trim()) {
+                resultLines.push(currentLine.trim());
+            }
+            
+            return resultLines.length > 0 ? resultLines : [''];
+        }
+        
+        // テキストをセグメントに分割
+        function tokenizeText(text) {
+            const segments = [];
+            // 半角・全角の英数字を単語として認識
+            const regex = /([0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]|[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+(?:\.[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+)*|[^ \u3000]+|[ ]+|[\u3000]+)/g;
+            let match;
+            
+            while ((match = regex.exec(text)) !== null) {
+                const segment = match[1];
+                
+                if (/^[0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]$/.test(segment)) {
+                    segments.push({ type: 'unit', text: segment });
+                } else if (/^[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+(?:\.[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+)*$/.test(segment)) {
+                    // 半角・全角の英数字を単語として扱う
+                    segments.push({ type: 'word', text: segment });
+                } else if (/^ +$/.test(segment)) {
+                    // 半角スペースのみ
+                    segments.push({ type: 'space', text: segment });
+                } else if (/^\u3000+$/.test(segment)) {
+                    // 全角スペースのみ
+                    segments.push({ type: 'fullwidth_space', text: segment });
+                } else {
+                    segments.push({ type: 'other', text: segment });
+                }
+            }
+            
+            return segments;
+        }
+        
+        // テキストの表示幅を計算
+        function calculateTextWidth(text) {
+            let width = 0;
+            for (const char of text) {
+                width += isFullWidth(char) ? 2 : 1;
+            }
+            return width;
+        }
+        
+        // 長いセグメントを強制的に分割
+        function forceBreakLongSegment(text, maxWidth) {
+            const lines = [];
+            let currentLine = '';
+            let currentWidth = 0;
+            
+            for (const char of text) {
+                const charWidth = isFullWidth(char) ? 2 : 1;
+                
+                if (currentWidth + charWidth > maxWidth && currentLine.length > 0) {
+                    lines.push(currentLine);
+                    currentLine = char;
+                    currentWidth = charWidth;
+                } else {
+                    currentLine += char;
+                    currentWidth += charWidth;
+                }
+            }
+            
+            if (currentLine.length > 0) {
+                lines.push(currentLine);
+            }
+            
+            return lines.length > 0 ? lines : [''];
+        }
+        
+        // より高度な改行ルール（オプション）
+        function advancedJapaneseLineBreak(text, maxCharsPerLine) {
+            // 日本語の改行禁則文字
+            const noBreakBefore = /[、。！？」』】〉》〕］｝）]/;
+            const noBreakAfter = /[「『【〈《〔［｛（]/;
+            const preferBreakAfter = /[。！？]/;
+            
+            // 基本的な改行処理を実行
+            const basicLines = smartLineBreak(text, maxCharsPerLine);
+            const improvedLines = [];
+            
+            for (let line of basicLines) {
+                // 禁則文字のチェックと調整
+                line = adjustLineBreakRules(line, noBreakBefore, noBreakAfter);
+                improvedLines.push(line);
+            }
+            
+            return improvedLines;
+        }
+        
+        // 禁則文字処理（簡略版）
+        function adjustLineBreakRules(line, noBreakBefore, noBreakAfter) {
+            // 行末が禁則文字で始まる場合の調整（簡略実装）
+            if (line.length > 1 && noBreakBefore.test(line.charAt(0))) {
+                // 前の行に移動すべきだが、ここでは簡略化
+                return line;
+            }
+            
+            return line;
+        }
+        
+        // 表示を更新
+        function updateDisplay() {
+            // 全ての行を表示（マスクで制御）
+            const html = textLineArray.map(line => 
+                `<div class="text-line">${line || '&nbsp;'}</div>`
+            ).join('');
+            
+            textLines.innerHTML = html;
+            
+            console.log(`表示更新: 全${textLineArray.length}行を表示`);
+        }
+        
+        // 連続スクロールアニメーション（スターウォーズ風）
+        let scrollQueue = [];
+        let isProcessingQueue = false;
+        let displayedLineCount = 0; // 現在表示されている行数
+        
+        function performContinuousScrollAnimation(lineCount) {
+            console.log(`${lineCount}行の連続スクロールを開始`);
+            
+            // 現在の表示行数を記録
+            displayedLineCount = textLineArray.length - lineCount;
+            
+            // 追加された行数をキューに追加
+            for (let i = 0; i < lineCount; i++) {
+                scrollQueue.push(i);
+            }
+            
+            // キューの処理を開始
+            if (!isProcessingQueue) {
+                processScrollQueue();
+            }
+        }
+        
+        function processScrollQueue() {
+            if (scrollQueue.length === 0) {
+                isProcessingQueue = false;
+                displayedLineCount = textLineArray.length; // 最終的に全行表示
+                console.log('連続スクロール完了');
+                return;
+            }
+            
+            isProcessingQueue = true;
+            scrollQueue.shift(); // 1つ処理
+            displayedLineCount++; // 表示行数を1つ増やす
+            
+            // 1行分のスクロールアニメーションを実行
+            performSingleLineScroll(() => {
+                // 次のスクロールを実行
+                processScrollQueue();
+            });
+        }
+        
+        function performSingleLineScroll(callback) {
+            console.log(`1行スクロールアニメーション開始（表示: ${displayedLineCount}行/${textLineArray.length}行）`);
+            
+            // 現在表示すべき行数までを表示
+            const linesToShow = textLineArray.slice(0, displayedLineCount);
+            const html = linesToShow.map(line => 
+                `<div class="text-line">${line || '&nbsp;'}</div>`
+            ).join('');
+            
+            // アニメーション無しで内容を更新
+            textLines.style.transition = 'none';
+            textLines.innerHTML = html;
+            
+            // 実際の行の高さを取得
+            const firstLine = textLines.querySelector('.text-line');
+            const lineHeight = firstLine ? firstLine.offsetHeight : (settings.fontSize * settings.lineHeight);
+            
+            console.log(`行の高さ: ${lineHeight}px`);
+            
+            // 初期位置: 1行分下に配置（新しい行がマスクの下に隠れる）
+            textLines.style.transform = `translateY(${lineHeight}px)`;
+            
+            // 次のフレームでアニメーション開始
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const duration = settings.animationDuration;
+                    textLines.style.transition = `transform ${duration}s linear`;
+                    textLines.style.transform = 'translateY(0)';
+                    
+                    console.log(`1行スクロール実行: ${lineHeight}px上にせり上がる、速度: ${duration}秒`);
+                });
+            });
+            
+            // アニメーション完了後にコールバック
+            setTimeout(() => {
+                // transformをリセット（次のスクロールのため）
+                textLines.style.transition = 'none';
+                textLines.style.transform = 'translateY(0)';
+                console.log('1行スクロール完了（transformリセット）');
+                if (callback) callback();
+            }, settings.animationDuration * 1000);
+        }
+        
+        // スクロールアニメーション実行（改良版）
+        function performScrollAnimation() {
+            if (isAnimating || textLineArray.length <= settings.maxVisibleLines) {
+                updateDisplay();
+                return;
+            }
+            
+            console.log('スクロールアニメーション開始');
+            isAnimating = true;
+            updateDebugInfo();
+            
+            // 1. 新しい行を含めて表示（まだ見えない位置に配置）
+            const visibleLines = textLineArray.slice(-settings.maxVisibleLines);
+            
+            // 新しい行を追加して全体を表示
+            const htmlWithNew = visibleLines.map(line => 
+                `<div class="text-line">${line || '&nbsp;'}</div>`
+            ).join('');
+            
+            // アニメーション無しで内容を更新
+            textLines.style.transition = 'none';
+            textLines.innerHTML = htmlWithNew;
+            
+            // 2. CSSアニメーションのキーフレームを動的に設定
+            // まず、一番上の行の高さを取得
+            const firstLine = textLines.querySelector('.text-line');
+            const lineHeight = firstLine ? firstLine.offsetHeight : (settings.fontSize * settings.lineHeight);
+            
+            console.log(`計算された行の高さ: ${lineHeight}px`);
+            
+            // 3. 初期位置を1行分下に設定（新しい行が画面外に）
+            textLines.style.transform = `translateY(${lineHeight}px)`;
+            
+            // 4. 次のフレームでアニメーション開始
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    textLines.style.transition = `transform ${settings.animationDuration}s linear`;
+                    textLines.style.transform = 'translateY(0)';
+                    
+                    console.log(`スクロール実行: ${lineHeight}px上に移動`);
+                });
+            });
+            
+            // 5. アニメーション完了後にクリーンアップ
+            setTimeout(() => {
+                textLines.style.transition = 'none';
+                textLines.style.transform = 'translateY(0)';
+                isAnimating = false;
+                updateDebugInfo();
+                console.log('スクロールアニメーション完了');
+            }, settings.animationDuration * 1000);
+        }
+        
+        // テキスト追加
+        function addText(text) {
+            console.log('=== テキスト追加開始 ===');
+            console.log('受信テキスト:', JSON.stringify(text));
+            console.log('設定 - removeLineBreaks:', settings.removeLineBreaks);
+            console.log('設定 - forceLineBreakChar:', JSON.stringify(settings.forceLineBreakChar));
+            
+            let processedText = text;
+            
+            // 改行処理設定に基づいて処理
+            if (settings.removeLineBreaks) {
+                // すべての改行を削除
+                processedText = processedText.replace(/\r?\n/g, '');
+                console.log('改行削除後:', JSON.stringify(processedText));
+            }
+            
+            // 強制改行文字を改行に変換
+            if (settings.forceLineBreakChar && settings.forceLineBreakChar.length > 0) {
+                const regex = new RegExp(settings.forceLineBreakChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                processedText = processedText.replace(regex, '\n');
+                console.log('強制改行文字変換後:', JSON.stringify(processedText));
+            }
+            
+            // 既存テキストと結合
+            let fullText = '';
+            if (textLineArray.length > 0) {
+                // 最後の行と新テキストを直接連結
+                const lastLine = textLineArray[textLineArray.length - 1];
+                const previousLines = textLineArray.slice(0, -1);
+                
+                if (previousLines.length > 0) {
+                    fullText = previousLines.join('\n') + '\n' + lastLine + processedText;
+                } else {
+                    fullText = lastLine + processedText;
+                }
+            } else {
+                fullText = processedText;
+            }
+            
+            console.log('結合後fullText:', JSON.stringify(fullText.substring(0, 100)));
+            
+            // 全角変換モードが有効な場合
+            if (settings.fullWidthMode) {
+                fullText = convertToFullWidth(fullText);
+            }
+            
+            console.log('最終処理後fullText:', JSON.stringify(fullText.substring(0, 100)));
+            
+            // 行に分割
+            const newLines = splitTextIntoLines(fullText);
+            const previousLineCount = textLineArray.length;
+            textLineArray = newLines;
+            
+            console.log(`行数変化: ${previousLineCount} → ${textLineArray.length}`);
+            console.log('=== テキスト追加終了 ===');
+            
+            // 初回メッセージの場合
+            if (!hasMessages) {
+                hasMessages = true;
+                displayedLineCount = 0; // 0行から始める
+                
+                // 初回も1行ずつスクロール
+                const initialLineCount = textLineArray.length;
+                if (initialLineCount > 0) {
+                    performContinuousScrollAnimation(initialLineCount);
+                } else {
+                    updateDisplay();
+                }
+                updateDebugInfo();
+                return;
+            }
+            
+            // 実際に増えた行数
+            const actualAddedLines = textLineArray.length - previousLineCount;
+            
+            if (actualAddedLines > 0) {
+                // 行が増えたら、その分だけスクロール
+                performContinuousScrollAnimation(actualAddedLines);
+            } else {
+                updateDisplay();
+            }
+            
+            updateDebugInfo();
+        }
+        
+        // 初期化
+        function initialize() {
+            console.log('初期化開始');
+            
+            // 設定を読み込み
+            loadSettings();
+            
+            // 辞書ファイルを読み込み
+            loadSpacedNamesDictionary();
+            
+            // 設定パネルを初期化
+            initSettingsPanel();
+            
+            // UIに設定を反映
+            updateSettingsUI();
+            
+            // 表示モードを適用
+            applyDisplayMode();
+            
+            // 表示スタイルを適用
+            updateDisplayStyle();
+            
+            console.log('初期化完了');
+        }
+        
+        // Socket.ioライブラリを動的に読み込み
+        const script = document.createElement('script');
+        script.src = '/socket.io/socket.io.js';
+        script.onload = function() {
+            console.log('Socket.IO読み込み完了');
+            startSocketConnection();
+        };
+        script.onerror = function() {
+            console.error('Socket.IO読み込み失敗');
+            connectionText.textContent = 'ライブラリ読み込み失敗';
+        };
+        document.head.appendChild(script);
+        
+        function startSocketConnection() {
+            // URLパラメータからroomIdを取得
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
+            
+            if (!roomId) {
+                alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+                window.location.href = '/room-manager';
+                return;
+            }
+            
+            console.log('表示画面 - ルームID:', roomId);
+            
+            const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const socketUrl = isLocalDevelopment ? 'http://localhost:3000' : '';
+            
+            const socket = io(socketUrl);
+            
+            socket.on('connect', () => {
+                statusIndicator.className = 'status-indicator connected';
+                connectionText.textContent = '接続済み';
+                console.log('接続成功:', socket.id);
+                
+                // 表示画面もルームに参加
+                socket.emit('join_display', { roomId: roomId });
+                console.log('join_displayイベント送信:', roomId);
+            });
+            
+            socket.on('disconnect', () => {
+                statusIndicator.className = 'status-indicator';
+                connectionText.textContent = '切断';
+            });
+            
+            socket.on('connect_error', (error) => {
+                statusIndicator.className = 'status-indicator';
+                connectionText.textContent = '接続エラー';
+                console.error('接続エラー:', error);
+            });
+            
+            socket.on('text_received', (message) => {
+                console.log('メッセージ受信:', message);
+                addText(message.text);
+            });
+        }
+        
+        // 全画面表示モードの管理
+        let isFullscreenMode = false;
+        const fullscreenIndicator = document.getElementById('fullscreenIndicator');
+        
+        async function toggleFullscreenMode() {
+            try {
+                if (!document.fullscreenElement) {
+                    // 全画面モードに入る
+                    await document.documentElement.requestFullscreen();
+                    isFullscreenMode = true;
+                    document.body.classList.add('fullscreen-mode');
+                    showFullscreenIndicator('全画面モード ON (F11またはESCで終了)');
+                    console.log('全画面モード: ON');
+                } else {
+                    // 全画面モードを終了
+                    await document.exitFullscreen();
+                    isFullscreenMode = false;
+                    document.body.classList.remove('fullscreen-mode');
+                    showFullscreenIndicator('全画面モード OFF');
+                    console.log('全画面モード: OFF');
+                }
+                
+                // 表示を更新
+                updateDisplay();
+            } catch (error) {
+                console.error('全画面表示の切り替えに失敗:', error);
+                alert('全画面表示に失敗しました。ブラウザが全画面表示をサポートしていない可能性があります。');
+            }
+        }
+        
+        // 全画面モードの変更を監視
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isFullscreenMode) {
+                // ユーザーがESCキーなどで全画面を終了した場合
+                isFullscreenMode = false;
+                document.body.classList.remove('fullscreen-mode');
+                console.log('全画面モード: OFF (ユーザー操作)');
+            }
+        });
+        
+        function showFullscreenIndicator(message) {
+            fullscreenIndicator.textContent = message;
+            fullscreenIndicator.classList.add('show');
+            
+            setTimeout(() => {
+                fullscreenIndicator.classList.remove('show');
+            }, 2000);
+        }
+        
+        // キーボードショートカット
+        document.addEventListener('keydown', (event) => {
+            // F11キーで全画面表示切り替え
+            if (event.key === 'F11') {
+                event.preventDefault();
+                toggleFullscreenMode();
+            }
+        });
+        
+        // アプリケーション開始
+        initialize();
+        updateDebugInfo();
+        
+        console.log('JavaScript初期化完了');
+    </script>
+</body>
+</html>

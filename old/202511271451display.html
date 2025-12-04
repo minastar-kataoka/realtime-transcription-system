@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>リアルタイム文字起こし - 表示画面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic Medium", "Meiryo", "MS Gothic", sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: #1a1a1a;
+            padding: 15px 30px;
+            border-bottom: 2px solid #333;
+            flex-shrink: 0;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            color: #fff;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #dc3545;
+        }
+        
+        .status-indicator.connected {
+            background-color: #28a745;
+        }
+        
+        .current-time {
+            font-family: monospace;
+        }
+        
+        .font-controls {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .settings-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .settings-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .text-display-area {
+            flex: 1;
+            border-radius: 10px;
+            border: 2px solid #333;
+            padding: 30px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        
+        .text-lines {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #fff;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            transition: transform 0.8s ease-out;
+        }
+        
+        .text-line {
+            margin: 0;
+            padding: 8px 12px;
+            background-color: inherit;
+        }
+        
+        .waiting-message {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            padding: 50px 0;
+        }
+        
+        .footer {
+            background-color: #1a1a1a;
+            padding: 10px 30px;
+            border-top: 2px solid #333;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            flex-shrink: 0;
+        }
+        
+        /* デバッグ用 */
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            z-index: 1000;
+        }
+        
+        /* 設定パネル */
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        
+        .settings-panel {
+            background-color: #1a1a1a;
+            border-radius: 10px;
+            padding: 30px;
+            width: 600px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 2px solid #333;
+        }
+        
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .settings-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+        }
+        
+        .close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .settings-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            color: #fff;
+            border-bottom-color: #007bff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .setting-group {
+            margin-bottom: 25px;
+        }
+        
+        .setting-label {
+            display: block;
+            color: #fff;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .setting-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        .setting-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .setting-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .setting-input {
+            width: 80px;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .setting-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .setting-unit {
+            color: #ccc;
+            font-size: 14px;
+            width: 30px;
+        }
+        
+        .setting-select {
+            width: 200px;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .setting-select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .color-input {
+            width: 60px;
+            height: 40px;
+            padding: 0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        .color-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        
+        .color-input::-webkit-color-swatch {
+            border: none;
+            border-radius: 3px;
+        }
+        
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .setting-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #007bff;
+        }
+        
+        .settings-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .preview-info {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .file-label:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">リアルタイム文字起こし</div>
+        <div class="status-bar">
+            <div class="connection-status">
+                <div id="statusIndicator" class="status-indicator"></div>
+                <span id="connectionText">接続中...</span>
+            </div>
+            <div class="font-controls">
+                <button id="settingsBtn" class="settings-btn">⚙️ 表示設定</button>
+            </div>
+            <div class="current-time" id="currentTime"></div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="text-display-area" id="textDisplayArea">
+            <div class="waiting-message" id="waitingMessage">
+                メッセージの受信を待っています...
+            </div>
+            <div class="text-lines" id="textLines" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        プロジェクター表示用画面 - オペレーター画面: <span id="operatorUrl"></span>
+    </div>
+
+    <!-- デバッグ情報 -->
+    <div class="debug-info" id="debugInfo">
+        行データ: 0行<br>
+        表示行数: 10行固定<br>
+        スクロール: なし<br>
+        アニメーション: 停止
+    </div>
+
+<!-- 設定パネル -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h2 class="settings-title">表示設定</h2>
+                <button class="close-btn" id="closeBtn">×</button>
+            </div>
+            
+            <div class="settings-tabs">
+                <button class="tab-btn active" data-tab="display">表示設定</button>
+                <button class="tab-btn" data-tab="scroll">スクロール設定</button>
+                <button class="tab-btn" data-tab="config">設定管理</button>
+            </div>
+            
+            <!-- 表示設定タブ -->
+            <div class="tab-content active" id="displayTab">
+                <div class="setting-group">
+                    <label class="setting-label">フォントサイズ</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="fontSizeSlider" min="12" max="48" value="20">
+                        <input type="number" class="setting-input" id="fontSizeInput" min="12" max="48" value="20">
+                        <span class="setting-unit">px</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">行間隔</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="lineHeightSlider" min="1.0" max="2.5" step="0.1" value="1.6">
+                        <input type="number" class="setting-input" id="lineHeightInput" min="1.0" max="2.5" step="0.1" value="1.6">
+                        <span class="setting-unit">倍</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">フォントフェイス</label>
+                    <div class="setting-row">
+                        <select class="setting-select" id="fontFamilySelect">
+                            <option value="system">システムフォント</option>
+                            <option value="hiragino">ヒラギノ角ゴ</option>
+                            <option value="yugothic">Yu Gothic</option>
+                            <option value="meiryo">メイリオ</option>
+                            <option value="msgothic">MS Gothic</option>
+                            <option value="noto">Noto Sans JP</option>
+                            <option value="roboto">Roboto</option>
+                            <option value="arial">Arial</option>
+                            <option value="helvetica">Helvetica</option>
+                            <option value="times">Times New Roman</option>
+                            <option value="georgia">Georgia</option>
+                            <option value="courier">Courier New</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">フォントスタイル</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="fontBoldCheck">
+                            <label for="fontBoldCheck">ボールド（太字）</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">強制的に半角→全角</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="fullWidthCheck">
+                            <label for="fullWidthCheck">半角文字を全角に変換</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">フォント色</label>
+                    <div class="setting-row">
+                        <input type="color" class="color-input" id="fontColorPicker" value="#ffffff">
+                        <input type="text" class="setting-input" id="fontColorInput" value="#ffffff" style="width: 100px;">
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">背景色</label>
+                    <div class="setting-row">
+                        <input type="color" class="color-input" id="bgColorPicker" value="#000000">
+                        <input type="text" class="setting-input" id="bgColorInput" value="#000000" style="width: 100px;">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- スクロール設定タブ -->
+            <div class="tab-content" id="scrollTab">
+                <div class="setting-group">
+                    <label class="setting-label">スクロール速度</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="scrollSpeedSlider" min="0.2" max="1.5" step="0.1" value="0.8">
+                        <input type="number" class="setting-input" id="scrollSpeedInput" min="0.2" max="1.5" step="0.1" value="0.8">
+                        <span class="setting-unit">秒</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">最大表示行数</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="maxLinesSlider" min="1" max="20" value="10">
+                        <input type="number" class="setting-input" id="maxLinesInput" min="1" max="99" value="10">
+                        <span class="setting-unit">行</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">1行文字数</label>
+                    <div class="setting-row">
+                        <input type="range" class="setting-slider" id="charsPerLineSlider" min="10" max="80" value="30">
+                        <input type="number" class="setting-input" id="charsPerLineInput" min="1" max="99" value="30">
+                        <span class="setting-unit">文字</span>
+                    </div>
+                </div>
+                
+                <div class="preview-info" id="previewInfo">
+                    現在の設定でプレビュー表示されています
+                </div>
+            </div>
+            
+            <!-- 設定管理タブ -->
+            <div class="tab-content" id="configTab">
+                <div class="setting-group">
+                    <label class="setting-label">設定ファイル</label>
+                    <div class="setting-row">
+                        <label for="configFile" class="file-label">📁 設定を読み込み</label>
+                        <input type="file" class="file-input" id="configFile" accept=".json">
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button class="btn btn-primary" id="saveConfigBtn">💾 設定を保存</button>
+                    <button class="btn btn-secondary" id="downloadConfigBtn">📥 設定をダウンロード</button>
+                    <button class="btn btn-danger" id="resetConfigBtn">🔄 設定をリセット</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('=== 設定パネル機能付きdisplay.html 開始 ===');
+        
+        // DOM要素の取得
+        const statusIndicator = document.getElementById('statusIndicator');
+        const connectionText = document.getElementById('connectionText');
+        const textDisplayArea = document.getElementById('textDisplayArea');
+        const waitingMessage = document.getElementById('waitingMessage');
+        const textLines = document.getElementById('textLines');
+        const currentTime = document.getElementById('currentTime');
+        const operatorUrl = document.getElementById('operatorUrl');
+        const debugInfo = document.getElementById('debugInfo');
+        
+        // 設定パネル要素
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeBtn = document.getElementById('closeBtn');
+        
+        // テキスト管理
+        let textLineArray = [];
+        let hasMessages = false;
+        let isAnimating = false;
+        
+        // グローバル変数に辞書を保存
+        let spacedNamesDictionary = [];
+        
+        // 設定オブジェクト
+        const settings = {
+            fontSize: 20,
+            lineHeight: 1.6,
+            fontFamily: 'system',
+            fontBold: false,
+            fontColor: '#ffffff',
+            backgroundColor: '#000000',
+            maxCharsPerLine: 30,
+            maxVisibleLines: 10,
+            animationDuration: 0.8,
+            fullWidthMode: false
+        };
+        
+        // デフォルト設定
+        const defaultSettings = { ...settings };
+        
+        // 設定の読み込み
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('displaySettings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(settings, parsed);
+                    console.log('設定を読み込みました:', settings);
+                }
+            } catch (error) {
+                console.error('設定の読み込みに失敗:', error);
+            }
+        }
+        
+        // 設定の保存
+        function saveSettings() {
+            try {
+                localStorage.setItem('displaySettings', JSON.stringify(settings));
+                console.log('設定を保存しました:', settings);
+            } catch (error) {
+                console.error('設定の保存に失敗:', error);
+            }
+        }
+        
+        // 設定をUIに反映
+        function updateSettingsUI() {
+            // フォント設定
+            document.getElementById('fontSizeSlider').value = settings.fontSize;
+            document.getElementById('fontSizeInput').value = settings.fontSize;
+            document.getElementById('lineHeightSlider').value = settings.lineHeight;
+            document.getElementById('lineHeightInput').value = settings.lineHeight;
+            document.getElementById('fontFamilySelect').value = settings.fontFamily;
+            document.getElementById('fontBoldCheck').checked = settings.fontBold;
+            document.getElementById('fontColorPicker').value = settings.fontColor;
+            document.getElementById('fontColorInput').value = settings.fontColor;
+            document.getElementById('bgColorPicker').value = settings.backgroundColor;
+            document.getElementById('bgColorInput').value = settings.backgroundColor;
+            
+            // スクロール設定
+            document.getElementById('scrollSpeedSlider').value = settings.animationDuration;
+            document.getElementById('scrollSpeedInput').value = settings.animationDuration;
+            document.getElementById('maxLinesSlider').value = settings.maxVisibleLines;
+            document.getElementById('maxLinesInput').value = settings.maxVisibleLines;
+            document.getElementById('charsPerLineSlider').value = settings.maxCharsPerLine;
+            document.getElementById('charsPerLineInput').value = settings.maxCharsPerLine;
+            
+                // 全角変換設定
+                document.getElementById('fullWidthCheck').checked = settings.fullWidthMode;
+        }
+        
+        // フォントファミリーのマッピング
+        const fontFamilyMap = {
+            system: '"Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic Medium", "Meiryo", "MS Gothic", sans-serif',
+            hiragino: '"Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif',
+            yugothic: '"Yu Gothic Medium", "Yu Gothic", "YuGothic", sans-serif',
+            meiryo: '"Meiryo", "メイリオ", sans-serif',
+            msgothic: '"MS Gothic", "ＭＳ ゴシック", monospace',
+            noto: '"Noto Sans JP", sans-serif',
+            roboto: '"Roboto", sans-serif',
+            arial: '"Arial", sans-serif',
+            helvetica: '"Helvetica Neue", "Helvetica", sans-serif',
+            times: '"Times New Roman", "Times", serif',
+            georgia: '"Georgia", serif',
+            courier: '"Courier New", "Courier", monospace'
+        };
+        
+        // 表示スタイルを更新
+        function updateDisplayStyle() {
+            // フォント設定
+            textLines.style.fontSize = settings.fontSize + 'px';
+            textLines.style.lineHeight = settings.lineHeight;
+            textLines.style.fontFamily = fontFamilyMap[settings.fontFamily] || fontFamilyMap.system;
+            textLines.style.fontWeight = settings.fontBold ? 'bold' : 'normal';
+            textLines.style.color = settings.fontColor;
+            
+            // 背景色
+            document.body.style.backgroundColor = settings.backgroundColor;
+            textDisplayArea.style.backgroundColor = settings.backgroundColor;
+            
+            // 表示エリアの高さを再計算
+            const lineHeight = settings.fontSize * settings.lineHeight;
+            textDisplayArea.style.height = `calc(${settings.maxVisibleLines} * ${lineHeight}px)`;
+            
+            // スクロールアニメーションの時間も更新
+            textLines.style.transition = `transform ${settings.animationDuration}s ease-out`;
+            
+            console.log('表示スタイルを更新:', {
+                fontSize: settings.fontSize,
+                lineHeight: settings.lineHeight,
+                fontFamily: settings.fontFamily,
+                fontBold: settings.fontBold,
+                fontColor: settings.fontColor,
+                backgroundColor: settings.backgroundColor,
+                maxVisibleLines: settings.maxVisibleLines,
+                animationDuration: settings.animationDuration
+            });
+        }
+        
+        // 設定パネルの初期化
+        function initSettingsPanel() {
+            // タブ切り替え
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.getAttribute('data-tab');
+                    
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    btn.classList.add('active');
+                    document.getElementById(targetTab + 'Tab').classList.add('active');
+                });
+            });
+            
+            // 設定値の同期関数
+            function syncSliderInput(sliderId, inputId, settingKey) {
+                const slider = document.getElementById(sliderId);
+                const input = document.getElementById(inputId);
+                
+                slider.addEventListener('input', () => {
+                    const value = parseFloat(slider.value);
+                    input.value = value;
+                    settings[settingKey] = value;
+                    updateDisplayStyle();
+                    saveSettings();
+                });
+                
+                input.addEventListener('change', () => {
+                    const value = parseFloat(input.value);
+                    if (!isNaN(value)) {
+                        slider.value = value;
+                        settings[settingKey] = value;
+                        updateDisplayStyle();
+                        saveSettings();
+                    }
+                });
+            }
+            
+            // 各設定の同期
+            syncSliderInput('fontSizeSlider', 'fontSizeInput', 'fontSize');
+            syncSliderInput('lineHeightSlider', 'lineHeightInput', 'lineHeight');
+            syncSliderInput('scrollSpeedSlider', 'scrollSpeedInput', 'animationDuration');
+            syncSliderInput('maxLinesSlider', 'maxLinesInput', 'maxVisibleLines');
+            syncSliderInput('charsPerLineSlider', 'charsPerLineInput', 'maxCharsPerLine');
+            
+            // フォントフェイス選択
+            document.getElementById('fontFamilySelect').addEventListener('change', (e) => {
+                settings.fontFamily = e.target.value;
+                updateDisplayStyle();
+                saveSettings();
+            });
+            
+            // ボールド設定
+            document.getElementById('fontBoldCheck').addEventListener('change', (e) => {
+                settings.fontBold = e.target.checked;
+                updateDisplayStyle();
+                saveSettings();
+            });
+            
+            // フォント色設定
+            function syncColorInputs(pickerId, inputId, settingKey) {
+                const picker = document.getElementById(pickerId);
+                const input = document.getElementById(inputId);
+                
+                picker.addEventListener('input', () => {
+                    const color = picker.value;
+                    input.value = color;
+                    settings[settingKey] = color;
+                    updateDisplayStyle();
+                    saveSettings();
+                });
+                
+                input.addEventListener('change', () => {
+                    const color = input.value;
+                    if (/^#[0-9A-F]{6}$/i.test(color)) {
+                        picker.value = color;
+                        settings[settingKey] = color;
+                        updateDisplayStyle();
+                        saveSettings();
+                    }
+                });
+            }
+            
+            syncColorInputs('fontColorPicker', 'fontColorInput', 'fontColor');
+            syncColorInputs('bgColorPicker', 'bgColorInput', 'backgroundColor');
+            
+            // 全角変換モード設定
+            document.getElementById('fullWidthCheck').addEventListener('change', (e) => {
+                settings.fullWidthMode = e.target.checked;
+                saveSettings();
+                
+                // 既存テキストにも適用する場合は再描画
+                if (textLineArray.length > 0) {
+                    updateDisplay();
+                }
+            });
+            
+            // 設定ファイルの読み込み
+            document.getElementById('configFile').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const config = JSON.parse(e.target.result);
+                            Object.assign(settings, config);
+                            updateSettingsUI();
+                            updateDisplayStyle();
+                            saveSettings();
+                            alert('設定を読み込みました');
+                        } catch (error) {
+                            alert('設定ファイルの読み込みに失敗しました');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+            
+            // 設定の保存
+            document.getElementById('saveConfigBtn').addEventListener('click', () => {
+                saveSettings();
+                alert('設定を保存しました');
+            });
+            
+            // 設定のダウンロード
+            document.getElementById('downloadConfigBtn').addEventListener('click', () => {
+                const config = JSON.stringify(settings, null, 2);
+                const blob = new Blob([config], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'display_settings.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+            
+            // 設定のリセット
+            document.getElementById('resetConfigBtn').addEventListener('click', () => {
+                if (confirm('設定をリセットしますか？')) {
+                    Object.assign(settings, defaultSettings);
+                    updateSettingsUI();
+                    updateDisplayStyle();
+                    saveSettings();
+                    alert('設定をリセットしました');
+                }
+            });
+        }
+        
+        // パネルの表示/非表示
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'flex';
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+        
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        });
+        
+        // 現在時刻の表示更新
+        function updateCurrentTime() {
+            const now = new Date();
+            currentTime.textContent = now.toLocaleTimeString('ja-JP');
+        }
+        
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+        
+        // オペレーター画面のURLを表示
+        operatorUrl.textContent = window.location.origin + '/';
+        
+        // デバッグ情報更新
+        function updateDebugInfo() {
+            const totalLines = textLineArray.length;
+            const visibleLines = Math.min(totalLines, settings.maxVisibleLines);
+            const needsScroll = totalLines > settings.maxVisibleLines;
+            const animStatus = isAnimating ? '実行中' : '停止';
+            
+            debugInfo.innerHTML = `行データ: ${totalLines}行<br>表示行数: ${visibleLines}/${settings.maxVisibleLines}行<br>スクロール: ${needsScroll ? 'あり' : 'なし'}<br>アニメーション: ${animStatus}`;
+        }
+        
+        // 全角文字判定
+        function isFullWidth(char) {
+            const code = char.charCodeAt(0);
+            return (code >= 0x3000 && code <= 0x9FAF) || 
+                   (code >= 0xFF01 && code <= 0xFF5E) || 
+                   (code >= 0xFF61 && code <= 0xFF9F);
+        }
+        
+        // TSV辞書ファイルの読み込み
+        async function loadSpacedNamesDictionary() {
+            try {
+                const response = await fetch('/spaced-names-dictionary.tsv');
+                const tsvText = await response.text();
+                
+                // TSVをパース
+                const lines = tsvText.trim().split('\n');
+                const headers = lines[0].split('\t'); // ヘッダー行をスキップ
+                
+                spacedNamesDictionary = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const columns = lines[i].split('\t');
+                    if (columns.length >= 2) {
+                        const category = columns[0].trim();
+                        const name = columns[1].trim();
+                        spacedNamesDictionary.push(name);
+                    }
+                }
+                
+                console.log(`スペース付き固有名詞辞書を読み込み: ${spacedNamesDictionary.length}件`);
+                
+            } catch (error) {
+                console.error('辞書ファイルの読み込み失敗:', error);
+                // フォールバック: 基本的な名詞のみ
+                spacedNamesDictionary = [
+                    'ニュー ヨーク',
+                    'ドナルド トランプ',
+                    'マイクロソフト オフィス'
+                ];
+            }
+        }
+        
+        // 修正されたクリーンアップ関数
+        function cleanupSpeechText(text) {
+            // 辞書が読み込まれていない場合は基本処理のみ
+            if (spacedNamesDictionary.length === 0) {
+                return basicCleanup(text);
+            }
+            
+            // 正当なスペース付き名詞を一時的に保護
+            const protected = [];
+            let protectedText = text;
+            
+            spacedNamesDictionary.forEach((name, index) => {
+                const placeholder = `__PROTECTED_${index}__`;
+                if (protectedText.includes(name)) {
+                    protected[index] = name;
+                    protectedText = protectedText.replace(new RegExp(escapeRegex(name), 'g'), placeholder);
+                }
+            });
+            
+            // 通常のクリーンアップを実行
+            let cleaned = basicCleanup(protectedText);
+            
+            // 保護した名詞を復元
+            protected.forEach((name, index) => {
+                if (name) {
+                    cleaned = cleaned.replace(`__PROTECTED_${index}__`, name);
+                }
+            });
+            
+            console.log('テキストクリーンアップ:', {
+                original: text.substring(0, 50) + '...',
+                cleaned: cleaned.substring(0, 50) + '...'
+            });
+            
+            return cleaned;
+        }
+        
+        // 基本的なクリーンアップ処理
+        function basicCleanup(text) {
+            let cleaned = text;
+            cleaned = cleaned.replace(/([ぁ-んァ-ヿ一-龯]) +([a-zA-Z0-9])/g, '$1$2');
+            cleaned = cleaned.replace(/([a-zA-Z0-9]) +([ぁ-んァ-ヿ一-龯])/g, '$1$2');
+            cleaned = cleaned.replace(/([ぁ-んァ-ヿ一-龯]) +([ぁ-んァ-ヿ一-龯])/g, '$1$2');
+            return cleaned;
+        }
+        
+        // 正規表現エスケープ
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        
+        // 半角文字を全角に変換（半角カナ対応版）
+        function convertToFullWidth(text) {
+            // 半角カナから全角カナへの変換マップ
+            const halfToFullKanaMap = {
+                'ｱ': 'ア', 'ｲ': 'イ', 'ｳ': 'ウ', 'ｴ': 'エ', 'ｵ': 'オ',
+                'ｶ': 'カ', 'ｷ': 'キ', 'ｸ': 'ク', 'ｹ': 'ケ', 'ｺ': 'コ',
+                'ｻ': 'サ', 'ｼ': 'シ', 'ｽ': 'ス', 'ｾ': 'セ', 'ｿ': 'ソ',
+                'ﾀ': 'タ', 'ﾁ': 'チ', 'ﾂ': 'ツ', 'ﾃ': 'テ', 'ﾄ': 'ト',
+                'ﾅ': 'ナ', 'ﾆ': 'ニ', 'ﾇ': 'ヌ', 'ﾈ': 'ネ', 'ﾉ': 'ノ',
+                'ﾊ': 'ハ', 'ﾋ': 'ヒ', 'ﾌ': 'フ', 'ﾍ': 'ヘ', 'ﾎ': 'ホ',
+                'ﾏ': 'マ', 'ﾐ': 'ミ', 'ﾑ': 'ム', 'ﾒ': 'メ', 'ﾓ': 'モ',
+                'ﾔ': 'ヤ', 'ﾕ': 'ユ', 'ﾖ': 'ヨ',
+                'ﾗ': 'ラ', 'ﾘ': 'リ', 'ﾙ': 'ル', 'ﾚ': 'レ', 'ﾛ': 'ロ',
+                'ﾜ': 'ワ', 'ｦ': 'ヲ', 'ﾝ': 'ン',
+                'ｧ': 'ァ', 'ｨ': 'ィ', 'ｩ': 'ゥ', 'ｪ': 'ェ', 'ｫ': 'ォ',
+                'ｬ': 'ャ', 'ｭ': 'ュ', 'ｮ': 'ョ', 'ｯ': 'ッ',
+                '｡': '。', '｢': '「', '｣': '」', '､': '、', '･': '・',
+                'ﾞ': '゛', 'ﾟ': '゜'
+            };
+            
+            let converted = text;
+            
+            // 1. 半角カナの濁音・半濁音を先に処理
+            converted = converted.replace(/(ｶ|ｷ|ｸ|ｹ|ｺ|ｻ|ｼ|ｽ|ｾ|ｿ|ﾀ|ﾁ|ﾂ|ﾃ|ﾄ|ﾊ|ﾋ|ﾌ|ﾍ|ﾎ)ﾞ/g, function(match, char) {
+                const dakutenMap = {
+                    'ｶ': 'ガ', 'ｷ': 'ギ', 'ｸ': 'グ', 'ｹ': 'ゲ', 'ｺ': 'ゴ',
+                    'ｻ': 'ザ', 'ｼ': 'ジ', 'ｽ': 'ズ', 'ｾ': 'ゼ', 'ｿ': 'ゾ',
+                    'ﾀ': 'ダ', 'ﾁ': 'ヂ', 'ﾂ': 'ヅ', 'ﾃ': 'デ', 'ﾄ': 'ド',
+                    'ﾊ': 'バ', 'ﾋ': 'ビ', 'ﾌ': 'ブ', 'ﾍ': 'ベ', 'ﾎ': 'ボ'
+                };
+                return dakutenMap[char] || match;
+            });
+            
+            converted = converted.replace(/(ﾊ|ﾋ|ﾌ|ﾍ|ﾎ)ﾟ/g, function(match, char) {
+                const handakutenMap = {
+                    'ﾊ': 'パ', 'ﾋ': 'ピ', 'ﾌ': 'プ', 'ﾍ': 'ペ', 'ﾎ': 'ポ'
+                };
+                return handakutenMap[char] || match;
+            });
+            
+            // 2. 残りの半角カナを全角カナに変換
+            converted = converted.replace(/[ｦ-ﾟ]/g, function(char) {
+                return halfToFullKanaMap[char] || char;
+            });
+            
+            // 3. ASCII文字（英数字記号）を全角に変換
+            converted = converted.replace(/[!-~]/g, function(char) {
+                return String.fromCharCode(char.charCodeAt(0) + 0xFEE0);
+            });
+            
+            return converted;
+        }
+        
+        // テキストを行に分割
+        // 改良版: 単語境界を考慮した改行処理
+        function splitTextIntoLines(text) {
+            const lines = text.split('\n');
+            const resultLines = [];
+            
+            for (const line of lines) {
+                if (line.length === 0) {
+                    resultLines.push('');
+                    continue;
+                }
+                
+                // 改行処理を実行
+                const brokenLines = smartLineBreak(line, settings.maxCharsPerLine);
+                resultLines.push(...brokenLines);
+            }
+            
+            return resultLines;
+        }
+        
+        // スマート改行処理のメイン関数
+        function smartLineBreak(text, maxCharsPerLine) {
+            const maxWidth = maxCharsPerLine * 2; // 全角基準
+            const segments = tokenizeText(text);
+            const resultLines = [];
+            let currentLine = '';
+            let currentWidth = 0;
+            
+            for (const segment of segments) {
+                const segmentWidth = calculateTextWidth(segment.text);
+                
+                // 現在の行に追加できるかチェック
+                if (currentWidth + segmentWidth <= maxWidth) {
+                    currentLine += segment.text;
+                    currentWidth += segmentWidth;
+                } else {
+                    // 現在の行に収まらない場合
+                    if (currentLine.trim()) {
+                        resultLines.push(currentLine.trim());
+                    }
+                    
+                    // セグメントが1行の幅を超える場合は文字単位で分割
+                    if (segmentWidth > maxWidth) {
+                        const forceBrokenLines = forceBreakLongSegment(segment.text, maxWidth);
+                        resultLines.push(...forceBrokenLines.slice(0, -1));
+                        
+                        const lastLine = forceBrokenLines[forceBrokenLines.length - 1];
+                        currentLine = lastLine;
+                        currentWidth = calculateTextWidth(lastLine);
+                    } else {
+                        currentLine = segment.text;
+                        currentWidth = segmentWidth;
+                    }
+                }
+            }
+            
+            if (currentLine.trim()) {
+                resultLines.push(currentLine.trim());
+            }
+            
+            return resultLines.length > 0 ? resultLines : [''];
+        }
+        
+        // テキストをセグメントに分割
+        function tokenizeText(text) {
+            const segments = [];
+            // [\s\u3000]+ を [ \u3000]+ に変更（半角スペースと全角スペースを明示的に分離）
+            const regex = /([0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]|[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*|[^ \u3000]+|[ ]+|[\u3000]+)/g;
+            let match;
+            
+            while ((match = regex.exec(text)) !== null) {
+                const segment = match[1];
+                
+                if (/^[0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]$/.test(segment)) {
+                    segments.push({ type: 'unit', text: segment });
+                } else if (/^[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*$/.test(segment)) {
+                    segments.push({ type: 'word', text: segment });
+                } else if (/^ +$/.test(segment)) {
+                    // 半角スペースのみ
+                    segments.push({ type: 'space', text: segment });
+                } else if (/^\u3000+$/.test(segment)) {
+                    // 全角スペースのみ
+                    segments.push({ type: 'fullwidth_space', text: segment });
+                } else {
+                    segments.push({ type: 'other', text: segment });
+                }
+            }
+            
+            return segments;
+        }
+        
+        // テキストの表示幅を計算
+        function calculateTextWidth(text) {
+            let width = 0;
+            for (const char of text) {
+                width += isFullWidth(char) ? 2 : 1;
+            }
+            return width;
+        }
+        
+        // 長いセグメントを強制的に分割
+        function forceBreakLongSegment(text, maxWidth) {
+            const lines = [];
+            let currentLine = '';
+            let currentWidth = 0;
+            
+            for (const char of text) {
+                const charWidth = isFullWidth(char) ? 2 : 1;
+                
+                if (currentWidth + charWidth > maxWidth && currentLine.length > 0) {
+                    lines.push(currentLine);
+                    currentLine = char;
+                    currentWidth = charWidth;
+                } else {
+                    currentLine += char;
+                    currentWidth += charWidth;
+                }
+            }
+            
+            if (currentLine.length > 0) {
+                lines.push(currentLine);
+            }
+            
+            return lines.length > 0 ? lines : [''];
+        }
+        
+        // より高度な改行ルール（オプション）
+        function advancedJapaneseLineBreak(text, maxCharsPerLine) {
+            // 日本語の改行禁則文字
+            const noBreakBefore = /[、。！？」』】〉》〕］｝）]/;
+            const noBreakAfter = /[「『【〈《〔［｛（]/;
+            const preferBreakAfter = /[。！？]/;
+            
+            // 基本的な改行処理を実行
+            const basicLines = smartLineBreak(text, maxCharsPerLine);
+            const improvedLines = [];
+            
+            for (let line of basicLines) {
+                // 禁則文字のチェックと調整
+                line = adjustLineBreakRules(line, noBreakBefore, noBreakAfter);
+                improvedLines.push(line);
+            }
+            
+            return improvedLines;
+        }
+        
+        // 禁則文字処理（簡略版）
+        function adjustLineBreakRules(line, noBreakBefore, noBreakAfter) {
+            // 行末が禁則文字で始まる場合の調整（簡略実装）
+            if (line.length > 1 && noBreakBefore.test(line.charAt(0))) {
+                // 前の行に移動すべきだが、ここでは簡略化
+                return line;
+            }
+            
+            return line;
+        }
+        
+        // 表示を更新
+        function updateDisplay() {
+            if (textLineArray.length === 0) {
+                waitingMessage.style.display = 'block';
+                textLines.style.display = 'none';
+                return;
+            }
+            
+            waitingMessage.style.display = 'none';
+            textLines.style.display = 'block';
+            
+            // 最新の指定行数を取得
+            const visibleLines = textLineArray.slice(-settings.maxVisibleLines);
+            
+            // HTMLを生成
+            const html = visibleLines.map(line => 
+                `<div class="text-line">${line || '&nbsp;'}</div>`
+            ).join('');
+            
+            textLines.innerHTML = html;
+            
+            console.log(`表示更新: 全${textLineArray.length}行中、最新${visibleLines.length}行を表示`);
+        }
+        
+        // スクロールアニメーション実行
+        function performScrollAnimation() {
+            if (isAnimating || textLineArray.length <= settings.maxVisibleLines) {
+                updateDisplay();
+                return;
+            }
+            
+            console.log('スクロールアニメーション開始');
+            isAnimating = true;
+            updateDebugInfo();
+            
+            // 現在の行の高さを動的に計算
+            const lineHeight = settings.fontSize * settings.lineHeight;
+            console.log(`計算された行の高さ: ${lineHeight}px (フォントサイズ: ${settings.fontSize}px × 行間隔: ${settings.lineHeight})`);
+            
+            // 現在表示されている行を取得
+            const currentVisibleLines = textLineArray.slice(-(settings.maxVisibleLines + 1), -1);
+            
+            // 現在の行を表示
+            textLines.innerHTML = currentVisibleLines.map(line => 
+                `<div class="text-line">${line || '&nbsp;'}</div>`
+            ).join('');
+            
+            // コンテナ全体を1行分上に移動
+            setTimeout(() => {
+                textLines.style.transition = `transform ${settings.animationDuration}s ease-out`;
+                
+                // 動的に計算された行の高さを使用
+                textLines.style.transform = `translateY(-${lineHeight}px)`;
+                console.log(`スクロール実行: translateY(-${lineHeight}px)`);
+                
+                // スクロール完了後、正常状態に復元
+                setTimeout(() => {
+                    textLines.style.transition = 'none';
+                    textLines.style.transform = 'translateY(0)';
+                    updateDisplay();
+                    isAnimating = false;
+                    updateDebugInfo();
+                    console.log('スクロールアニメーション完了');
+                }, settings.animationDuration * 1000);
+            }, 16);
+        }
+        
+        // テキスト追加
+        function addText(text) {
+            console.log('テキスト追加:', text);
+            
+            // ●を改行に変換
+            const processedText = text.replace(/●/g, '\n');
+            
+            // 既存テキストと結合
+            let fullText = '';
+            if (textLineArray.length > 0) {
+                fullText = textLineArray.join('\n') + ' ' + processedText;
+            } else {
+                fullText = processedText;
+            }
+            
+            // 音声認識由来の不適切なスペースを除去
+            fullText = cleanupSpeechText(fullText);
+            
+            // 全角変換モードが有効な場合
+            if (settings.fullWidthMode) {
+                fullText = convertToFullWidth(fullText);
+            }
+            
+            // 行に分割
+            const newLines = splitTextIntoLines(fullText);
+            const previousLineCount = textLineArray.length;
+            textLineArray = newLines;
+            
+            console.log(`行数変化: ${previousLineCount} → ${textLineArray.length}`);
+            
+            // 初回メッセージの場合
+            if (!hasMessages) {
+                hasMessages = true;
+                updateDisplay();
+                updateDebugInfo();
+                return;
+            }
+            
+            // 行が増えた場合はスクロールアニメーション
+            if (textLineArray.length > previousLineCount) {
+                performScrollAnimation();
+            } else {
+                updateDisplay();
+            }
+            
+            updateDebugInfo();
+        }
+        
+        // 初期化
+        function initialize() {
+            console.log('初期化開始');
+            
+            // 設定を読み込み
+            loadSettings();
+            
+            // 辞書ファイルを読み込み
+            loadSpacedNamesDictionary();
+            
+            // 設定パネルを初期化
+            initSettingsPanel();
+            
+            // UIに設定を反映
+            updateSettingsUI();
+            
+            // 表示スタイルを適用
+            updateDisplayStyle();
+            
+            console.log('初期化完了');
+        }
+        
+        // Socket.ioライブラリを動的に読み込み
+        const script = document.createElement('script');
+        script.src = '/socket.io/socket.io.js';
+        script.onload = function() {
+            console.log('Socket.IO読み込み完了');
+            startSocketConnection();
+        };
+        script.onerror = function() {
+            console.error('Socket.IO読み込み失敗');
+            connectionText.textContent = 'ライブラリ読み込み失敗';
+        };
+        document.head.appendChild(script);
+        
+        function startSocketConnection() {
+            // URLパラメータからroomIdを取得
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
+            
+            if (!roomId) {
+                alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+                window.location.href = '/room-manager';
+                return;
+            }
+            
+            console.log('表示画面 - ルームID:', roomId);
+            
+            const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const socketUrl = isLocalDevelopment ? 'http://localhost:3000' : '';
+            
+            const socket = io(socketUrl);
+            
+            socket.on('connect', () => {
+                statusIndicator.className = 'status-indicator connected';
+                connectionText.textContent = '接続済み';
+                console.log('接続成功:', socket.id);
+                
+                // 表示画面もルームに参加
+                socket.emit('join_display', { roomId: roomId });
+                console.log('join_displayイベント送信:', roomId);
+            });
+            
+            socket.on('disconnect', () => {
+                statusIndicator.className = 'status-indicator';
+                connectionText.textContent = '切断';
+            });
+            
+            socket.on('connect_error', (error) => {
+                statusIndicator.className = 'status-indicator';
+                connectionText.textContent = '接続エラー';
+                console.error('接続エラー:', error);
+            });
+            
+            socket.on('text_received', (message) => {
+                console.log('メッセージ受信:', message);
+                addText(message.text);
+            });
+        }
+        
+        // アプリケーション開始
+        initialize();
+        updateDebugInfo();
+        
+        console.log('JavaScript初期化完了');
+    </script>
+</body>
+</html>

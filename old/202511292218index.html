@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>リアルタイム文字起こしシステム</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: visible;
+            position: relative;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 18px; /* 小さくしました */
+            font-weight: bold;
+        }
+        
+        .status {
+            background-color: #e8f5e8;
+            padding: 8px 15px; /* 高さを狭くしました */
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+            font-size: 14px; /* フォントも小さく */
+        }
+        
+        .status.connecting {
+            background-color: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        
+        .info-box {
+            background-color: #d1ecf1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .test-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .test-section h3 {
+            color: #495057;
+            margin-top: 0;
+        }
+        
+        .test-list {
+            margin-top: 15px;
+        }
+        
+        .test-list li {
+            margin-bottom: 8px;
+            padding-left: 10px;
+        }
+        
+        .login-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 16px;
+        }
+        
+        .input-group button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .input-group button:hover {
+            background-color: #0056b3;
+        }
+        
+        .input-group button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .main-section {
+            margin-top: 20px;
+        }
+        
+        .sender-panel {
+            background-color: #e3f2fd;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .sender-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .current-sender-info {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .next-sender-btn {
+            padding: 10px 20px;
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .next-sender-btn:hover:not(:disabled) {
+            background-color: #1976d2;
+        }
+        
+        .next-sender-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .sender-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .sender-message.has-permission {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .input-panel {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #6c757d;
+        }
+        
+        .input-panel.active {
+            border-left-color: #28a745;
+            background-color: #f8fff8;
+        }
+        
+        .input-area {
+            margin-top: 15px;
+        }
+        
+        .input-area textarea {
+            width: 100%;
+            height: 140px; /* デフォルト7行分（動的に変更される） */
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        
+        .input-area textarea:disabled {
+            background-color: #f5f5f5;
+            color: #6c757d;
+        }
+        
+        .input-area textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .input-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            gap: 15px;
+        }
+        
+        .keyboard-hint {
+            color: #6c757d;
+            font-size: 14px;
+            flex: 1;
+        }
+        
+        .input-status {
+            color: #6c757d;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .input-status.active {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .three-tier-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .tier-panel {
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #6c757d;
+            transition: all 0.3s ease;
+        }
+        
+        /* 通常時（左側のみ枠線） */
+        .tier-previous {
+            background-color: #f0f8ff;
+            border-left: 4px solid #17a2b8;  /* 水色・左のみ */
+        }
+        
+        .tier-current {
+            background-color: #f8fff8;
+            border-left: 4px solid #28a745;  /* 緑色・左のみ */
+        }
+        
+        .tier-next {
+            background-color: #fff8dc;
+            border-left: 4px solid #ffc107;  /* ベージュ・左のみ */
+        }
+        
+        /* 送信権表示時（4方向全て枠線） */
+        .tier-previous.has-sender-permission {
+            border: 4px solid #17a2b8 !important;       /* 水色・4方向全て */
+            border-left-width: 4px !important;          /* 左側も4px */
+        }
+        
+        .tier-current.has-sender-permission {
+            border: 4px solid #28a745 !important;       /* 緑色・4方向全て */
+            border-left-width: 4px !important;          /* 左側も4px */
+        }
+        
+        .tier-next.has-sender-permission {
+            border: 4px solid #ffc107 !important;       /* ベージュ・4方向全て */
+            border-left-width: 4px !important;          /* 左側も4px */
+        }
+        
+        .tier-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .tier-user-name {
+            color: #007bff;
+            font-size: 16px;
+        }
+        
+        .char-counter {
+            font-size: 12px;
+            color: #6c757d;
+            font-family: monospace;
+            margin-left: 8px;
+        }
+        
+        .input-lines-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #6c757d;
+            margin-left: 15px;
+        }
+        
+        .input-lines-control label {
+            font-weight: normal;
+        }
+        
+        .tier-status {
+            margin-left: auto;
+            color: #28a745;
+            font-size: 12px;
+            font-weight: normal;
+        }
+        
+        .tier-status.waiting {
+            color: #6c757d;
+        }
+        
+        .tier-content {
+            background-color: white;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            min-height: 50px;
+            font-size: 16px;
+            line-height: 1.4;
+            color: #333;
+        }
+        
+        .tier-content.empty {
+            color: #999;
+            font-style: italic;
+        }
+        
+        .tier-input-area {
+            position: relative;
+            z-index: 10;
+            isolation: isolate;
+        }
+        
+        .tier-input-area textarea {
+            width: 100%;
+            height: 140px; /* デフォルト7行分（動的に変更される） */
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            resize: vertical;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+            /* IME対策 */
+            position: relative;
+            z-index: 1;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+        }
+        
+        .tier-input-area textarea:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+        
+        .tier-input-area textarea.has-permission {
+            border-color: #28a745;
+            border-width: 3px;
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+            background-color: #f8fff8;
+        }
+        
+        .tier-input-area textarea.has-permission::placeholder {
+            color: #28a745;
+            opacity: 0.7;
+        }
+        
+        .tier-input-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            gap: 15px;
+        }
+        
+        /* ログ表示パネル（旧メッセージパネル部分） */
+        .log-panel {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        
+        .log-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .log-show-btn {
+            padding: 12px 24px;
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .log-show-btn:hover {
+            background-color: #138496;
+        }
+        
+        .export-btn {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .export-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .export-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .clear-log-btn {
+            padding: 8px 16px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .clear-log-btn:hover {
+            background-color: #c82333;
+        }
+        
+        .clear-log-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log-stats {
+            font-size: 12px;
+            color: #6c757d;
+            margin-left: auto;
+        }
+        
+        /* バージョン情報 */
+        .version-info {
+            background-color: #007bff;
+            color: white;
+            padding: 5px 15px;
+            text-align: center;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        
+        /* ヘッダー内の文字数ガイド設定 */
+        .char-guide-controls-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            font-weight: normal;
+        }
+        
+        .char-guide-controls-header .char-guide-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .char-guide-controls-header .char-guide-setting {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+        }
+        
+        .char-guide-controls-header .char-guide-setting input[type="number"] {
+            padding: 1px 3px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 11px;
+            width: 50px;
+        }
+        
+        /* 現在行文字数表示 */
+        .current-line-counter {
+            background-color: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 3px 3px 0 0;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            font-size: 12px;
+            color: #495057;
+        }
+        
+        .tier-input-area textarea {
+            border-radius: 0 0 4px 4px;
+        }
+        
+        /* 文字数ガイド背景 */
+        .char-guide-background {
+            background: linear-gradient(
+                to right,
+                #f0f8f0 0%,
+                #f0f8f0 var(--guide-percentage, 50%),
+                #ffffff var(--guide-percentage, 50%),
+                #ffffff 100%
+            );
+        }
+        
+        /* 設定ボタン */
+        .settings-toggle-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 15px;
+            transition: background-color 0.3s;
+        }
+        
+        .settings-toggle-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .settings-toggle-btn.active {
+            background-color: #28a745;
+        }
+        
+        /* 設定エリア */
+        .settings-area {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            overflow: hidden;
+        }
+        
+        .settings-area.hidden {
+            max-height: 0;
+            opacity: 0;
+        }
+        
+        .settings-area.visible {
+            max-height: 2000px;
+            opacity: 1;
+        }
+        
+        .char-guide-panel,
+        .log-panel {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- バージョン情報 -->
+    <!-- 
+    <div class="version-info">
+        Version 2.1.4 - Build 2025.07.14.005 - 3段個別行数調整機能
+    </div>
+    -->
+    
+    <div class="container">
+        <!-- 
+        <h1>リアルタイム文字起こしシステム</h1>
+        -->
+        
+        <div id="status" class="status connecting">
+            <strong>接続状況:</strong> <span id="statusText">サーバーに接続中...</span>
+        </div>
+                
+        <!-- 参加前の画面 -->
+        <div id="loginSection" class="login-section">
+            <h3>参加者名を入力してください</h3>
+            <div class="input-group">
+                <input type="text" id="nameInput" placeholder="例: オペレーター1" maxlength="20">
+                <button id="joinBtn">参加</button>
+            </div>
+        </div>
+        
+        <!-- 参加後の画面 -->
+        <div id="mainSection" class="main-section" style="display: none;">
+            <!-- 3段表示エリア -->
+            <div class="three-tier-layout">
+                <!-- 上段：前の人の入力状況 -->
+                <div class="tier-panel tier-previous">
+                    <div class="tier-header">
+                        <span id="previousUserName" class="tier-user-name">前の人</span>
+                        <div class="input-lines-control">
+                            <label for="previousLinesNumber">行数:</label>
+                            <input type="number" id="previousLinesNumber" min="2" max="15" value="4" style="width: 45px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; margin: 0 3px;">
+                        </div>
+                    </div>
+                    <div id="previousUserInput" class="tier-content">
+                        待機中...
+                    </div>
+                </div>
+                
+                <!-- 中段：自分の入力エリア -->
+                <div class="tier-panel tier-current">
+                    <div class="tier-header">
+                        <span id="currentUserName" class="tier-user-name">あなた</span>
+                        <div class="input-lines-control">
+                            <label for="currentLinesNumber">行数:</label>
+                            <input type="number" id="currentLinesNumber" min="3" max="20" value="7" style="width: 45px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; margin: 0 3px;">
+                        </div>
+                        <span id="charCounter" class="char-counter">0文字</span>
+                        <span id="currentInputStatus" class="tier-status">入力可能・送信権待ち</span>
+                    </div>
+                    
+                    <div class="tier-input-area">
+                        <textarea id="textInput" placeholder="ここに文字起こし内容を入力してください..."></textarea>
+                        <div class="tier-input-controls">
+                            <span class="keyboard-hint">Ctrl+Enter または F12 で送信</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 下段：次の人の入力状況 -->
+                <div class="tier-panel tier-next">
+                    <div class="tier-header">
+                        <span id="nextUserName" class="tier-user-name">次の人</span>
+                        <div class="input-lines-control">
+                            <label for="nextLinesNumber">行数:</label>
+                            <input type="number" id="nextLinesNumber" min="2" max="15" value="4" style="width: 45px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; margin: 0 3px;">
+                        </div>
+                    </div>
+                    <div id="nextUserInput" class="tier-content">
+                        待機中...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 設定ボタン -->
+            <button id="settingsToggleBtn" class="settings-toggle-btn">⚙️ 設定</button>
+            
+            <!-- 設定エリア -->
+            <div id="settingsArea" class="settings-area hidden">
+                <!-- 文字数ガイド表示設定 -->
+                <div class="char-guide-panel">
+                <h3>🎯 文字数ガイド設定</h3>
+                <div class="char-guide-controls">
+                    <label class="char-guide-checkbox">
+                        <input type="checkbox" id="charGuideEnabled"> 文字数ガイド表示
+                    </label>
+                    <div class="char-guide-setting">
+                        <label>目安: </label>
+                        <input type="number" id="charGuideLimit" value="20" min="0.5" max="100" step="0.5" style="width: 60px;">
+                        <span>文字（全角基準）</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ログ表示パネル（旧メッセージパネル） -->
+            <div class="log-panel">
+                <h3>送信済みメッセージ管理</h3>
+                <div class="log-controls">
+                    <button id="logShowBtn" class="log-show-btn">📋 ログ表示</button>
+                    <button id="exportTextBtn" class="export-btn">テキストのみエクスポート</button>
+                    <button id="exportTimecodeBtn" class="export-btn">タイムコード付きエクスポート</button>
+                    <button id="clearLogBtn" class="clear-log-btn">ログクリア</button>
+                    <span id="logStats" class="log-stats">ログ: 0件</span>
+                </div>
+            </div>
+            
+            <!-- アクセス方法 -->
+            <div class="info-box">
+                <h3>アクセス方法</h3>
+                <p>他のデバイスからアクセスする場合は、以下のURLを使用してください。</p>
+                <div class="connection-info">
+                    参加後に実際のURLが表示されます
+                </div>
+                
+                <!-- QRコード表示エリアを追加 -->
+                <div class="qr-section" style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
+                    <h4 style="color: #495057; margin-bottom: 10px; font-size: 14px;">表示用画面 QRコード</h4>
+                    <div id="qrcode" style="text-align: center; margin: 10px 0;"></div>
+                    <p style="font-size: 12px; color: #666; text-align: center;">
+                        スマートフォンやタブレットで読み取って表示用画面にアクセス
+                    </p>
+                </div>
+            </div>
+            </div>
+            <!-- 設定エリア終了 -->
+        </div>
+    </div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // ✅ グローバル変数にroomIdを保持
+        let currentRoomId = null;
+        
+        // URLパラメータからroomIdを取得してグローバル変数に保存
+        const urlParams = new URLSearchParams(window.location.search);
+        currentRoomId = urlParams.get('room');  // ← constではなくcurrentRoomIdに代入
+        
+        if (!currentRoomId) {  // ← roomIdではなくcurrentRoomId
+            alert('ルームIDが指定されていません。ルーム管理画面に移動します。');
+            window.location.href = '/room-manager';
+        }
+        
+        console.log('index.html - ルームID:', currentRoomId);  // ← 確認用ログ追加
+        
+        const socket = io();
+        const statusDiv = document.getElementById('status');
+        const statusText = document.getElementById('statusText');        
+        const loginSection = document.getElementById('loginSection');
+        const mainSection = document.getElementById('mainSection');
+        const nameInput = document.getElementById('nameInput');
+        const joinBtn = document.getElementById('joinBtn');
+        
+        const textInput = document.getElementById('textInput');
+        
+        // ログ関連の要素
+        const logShowBtn = document.getElementById('logShowBtn');
+        const exportTextBtn = document.getElementById('exportTextBtn');
+        const exportTimecodeBtn = document.getElementById('exportTimecodeBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const logStats = document.getElementById('logStats');
+        
+        // 3段表示用の要素
+        const previousUserName = document.getElementById('previousUserName');
+        const previousUserInput = document.getElementById('previousUserInput');
+        const currentUserName = document.getElementById('currentUserName');
+        const currentInputStatus = document.getElementById('currentInputStatus');
+        const nextUserName = document.getElementById('nextUserName');
+        const nextUserInput = document.getElementById('nextUserInput');
+        const tierCurrent = document.querySelector('.tier-current');
+        const charCounter = document.getElementById('charCounter');
+        
+        let isJoined = false;
+        let myParticipant = null;
+        let currentSender = null;
+        let typingUsers = new Map(); // ユーザーの入力状況を管理
+        let typingTimeout = null;
+        let allParticipants = []; // 全参加者を保持
+        let messageCount = 0; // ログ件数をトラッキング
+        let logWindow = null; // ログウィンドウの参照
+        // currentRoomIdは既に705行目で宣言済み（重複削除）
+        
+        // 入力行数設定（3段それぞれ個別）
+        let inputLinesSettings = {
+            previous: 4,  // 前の人の表示行数
+            current: 7,   // 自分の入力行数
+            next: 4       // 次の人の表示行数
+        };
+        
+        // 文字数ガイド設定
+        let charGuideSettings = {
+            enabled: false,
+            charLimit: 20.0
+        };
+        
+        // 設定エリアの表示/非表示
+        const settingsToggleBtn = document.getElementById('settingsToggleBtn');
+        const settingsArea = document.getElementById('settingsArea');
+        let settingsVisible = false;
+        
+        // LocalStorageから設定の表示状態を読み込み
+        const savedSettingsVisibility = localStorage.getItem('settingsVisible');
+        if (savedSettingsVisibility === 'true') {
+            settingsVisible = true;
+            settingsArea.classList.remove('hidden');
+            settingsArea.classList.add('visible');
+            settingsToggleBtn.classList.add('active');
+        }
+        
+        settingsToggleBtn.addEventListener('click', () => {
+            settingsVisible = !settingsVisible;
+            
+            if (settingsVisible) {
+                settingsArea.classList.remove('hidden');
+                settingsArea.classList.add('visible');
+                settingsToggleBtn.classList.add('active');
+            } else {
+                settingsArea.classList.remove('visible');
+                settingsArea.classList.add('hidden');
+                settingsToggleBtn.classList.remove('active');
+            }
+            
+            // LocalStorageに保存
+            localStorage.setItem('settingsVisible', settingsVisible);
+        });
+        
+        // Socket.io接続イベント
+        socket.on('connect', () => {
+            statusDiv.className = 'status';
+            statusText.textContent = 'サーバーに接続されました';
+            
+            console.log('Socket.io接続成功:', socket.id);
+        });
+        
+        socket.on('disconnect', () => {
+            statusDiv.className = 'status error';
+            statusText.textContent = 'サーバーとの接続が切断されました';
+            
+            console.log('Socket.io接続切断');
+        });
+        
+        socket.on('connect_error', (error) => {
+            statusDiv.className = 'status error';
+            statusText.textContent = 'サーバーに接続できませんでした';
+            
+            console.error('Socket.io接続エラー:', error);
+        });
+        
+        // 参加関連のイベント
+        socket.on('joined', (data) => {
+            if (data.success) {
+                isJoined = true;
+                myParticipant = data.participant;
+                loginSection.style.display = 'none';
+                mainSection.style.display = 'block';
+                
+                // 自分の名前を表示
+                currentUserName.textContent = data.participant.name;
+                
+                // 実際のURLを表示とQRコード生成
+                if (data.serverInfo) {
+                    updateConnectionInfo(data.serverInfo);
+                    generateDisplayQR(data.serverInfo.displayUrl);
+                }
+                
+                // ✅ この行を追加: 参加時にログ統計を取得
+                updateLogStats();
+                
+                // 参加完了後、文字数ガイドの背景を更新
+                setTimeout(() => {
+                    updateCharGuideBackground();
+                }, 100);
+                
+                console.log('参加完了:', data.participant);
+            }
+        });
+        
+        socket.on('participants_updated', (data) => {
+            allParticipants = data.participants;
+            updateParticipantsList(data.participants, data.currentSender);
+            updateSenderInfo(data.currentSender);
+            updateInputState(data.currentSender);
+            updateThreeTierDisplay(data.participants, data.currentSender);
+            
+            if (data.participants.length >= 1 && data.currentSender) {
+            }
+        });
+        
+        socket.on('sender_updated', (data) => {
+            updateSenderInfo(data.currentSender);
+            updateInputState(data.currentSender);
+            updateParticipantsList(null, data.currentSender); // 参加者一覧は更新せず送信権表示のみ更新
+            updateThreeTierDisplay(allParticipants, data.currentSender);
+        });
+        
+        // メッセージ受信
+        socket.on('text_received', (message) => {
+            console.log('✅ 新しいメッセージ受信:', message);
+            
+            // ✅ ログ件数を増やす
+            messageCount++;
+            console.log(`ログ件数インクリメント: ${messageCount}件`);
+            
+            // ✅ 統計を更新
+            updateLogStats();
+            
+            // ログウィンドウが開いている場合、メッセージを追加
+            if (logWindow && !logWindow.closed) {
+                logWindow.addMessageToLog(message);
+            }
+        });
+        
+
+        // リアルタイム入力の受信
+        socket.on('user_typing', (data) => {
+            console.log('他ユーザーの入力受信:', data);
+            updateThreeTierTyping(data);
+        });
+        
+        // 入力クリアの受信
+        socket.on('user_clear_typing', (data) => {
+            console.log('他ユーザーの入力クリア:', data);
+            clearThreeTierTyping(data.userId);
+        });
+        
+        // ログ表示ウィンドウを開く
+        function openLogWindow() {
+            // ✅ グローバル変数のcurrentRoomIdを使用（URLから再取得しない）
+            if (!currentRoomId) {
+                alert('ルームIDが取得できません');
+                return;
+            }
+            
+            const logUrl = window.location.origin + '/logs?room=' + currentRoomId;  // ← roomIdをcurrentRoomIdに変更
+            
+            // 既存のウィンドウがある場合は閉じる
+            if (logWindow && !logWindow.closed) {
+                logWindow.close();
+            }
+            
+            // 新しいウィンドウを開く
+            logWindow = window.open(
+                logUrl,
+                'transcription-logs',
+                'width=1000,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no'
+            );
+            
+            if (!logWindow) {
+                alert('ポップアップがブロックされました。ブラウザの設定を確認してください。');
+                return;
+            }
+            
+            // ウィンドウが閉じられた場合の処理
+            const checkClosed = setInterval(() => {
+                if (logWindow.closed) {
+                    clearInterval(checkClosed);
+                    logWindow = null;
+                }
+            }, 1000);
+            
+            console.log('ログウィンドウを開きました:', logUrl);
+        }
+        
+        // 入力行数設定を読み込み
+        function loadInputLinesSettings() {
+            try {
+                const saved = localStorage.getItem('inputLinesSettings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(inputLinesSettings, parsed);
+                }
+            } catch (error) {
+                console.error('入力行数設定の読み込みに失敗:', error);
+            }
+            
+            // UIに反映
+            document.getElementById('previousLinesNumber').value = inputLinesSettings.previous;
+            document.getElementById('currentLinesNumber').value = inputLinesSettings.current;
+            document.getElementById('nextLinesNumber').value = inputLinesSettings.next;
+            
+            // テキストエリアの高さを更新
+            updateTextAreaHeight();
+            
+            console.log('入力行数設定読み込み完了:', inputLinesSettings);
+        }
+        
+        // 入力行数設定を保存
+        function saveInputLinesSettings() {
+            try {
+                localStorage.setItem('inputLinesSettings', JSON.stringify(inputLinesSettings));
+                console.log('入力行数設定保存完了:', inputLinesSettings);
+            } catch (error) {
+                console.error('入力行数設定の保存に失敗:', error);
+            }
+        }
+        
+        // テキストエリアの高さを更新（個別対応）
+        function updateTextAreaHeight() {
+            const lineHeight = 20; // 1行あたりの高さ（px）
+            const inputPadding = 24; // 入力エリアの上下パディング合計
+            const contentPadding = 24; // 表示エリアの上下パディング合計
+            
+            // 自分の入力エリア（テキストエリア）
+            const currentHeight = (inputLinesSettings.current * lineHeight) + inputPadding;
+            const textInput = document.getElementById('textInput');
+            if (textInput) {
+                textInput.style.height = `${currentHeight}px`;
+            }
+            
+            // 前の人の表示エリア
+            const previousHeight = (inputLinesSettings.previous * lineHeight) + contentPadding;
+            const previousUserInput = document.getElementById('previousUserInput');
+            if (previousUserInput) {
+                previousUserInput.style.minHeight = `${previousHeight - contentPadding}px`;
+                previousUserInput.style.maxHeight = `${previousHeight - contentPadding}px`;
+                previousUserInput.style.overflow = 'auto';
+            }
+            
+            // 次の人の表示エリア
+            const nextHeight = (inputLinesSettings.next * lineHeight) + contentPadding;
+            const nextUserInput = document.getElementById('nextUserInput');
+            if (nextUserInput) {
+                nextUserInput.style.minHeight = `${nextHeight - contentPadding}px`;
+                nextUserInput.style.maxHeight = `${nextHeight - contentPadding}px`;
+                nextUserInput.style.overflow = 'auto';
+            }
+            
+            console.log(`テキストエリア高さ更新:`, {
+                previous: `${inputLinesSettings.previous}行 = ${previousHeight-contentPadding}px`,
+                current: `${inputLinesSettings.current}行 = ${currentHeight}px`,
+                next: `${inputLinesSettings.next}行 = ${nextHeight-contentPadding}px`
+            });
+        }
+        function countCharacters(text) {
+            let count = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                // 全角文字（ひらがな、カタカナ、漢字、全角記号など）は1文字
+                // 半角文字（英数字、半角記号など）は0.5文字としてカウント
+                if (char.match(/[^\x00-\x7F]/)) {
+                    count += 1; // 全角文字
+                } else {
+                    count += 0.5; // 半角文字
+                }
+            }
+            return count; // 小数点以下も保持
+        }
+        
+        // カーソル位置の行の文字数を取得
+        function getCurrentLineCharCount() {
+            const textarea = textInput;
+            const text = textarea.value;
+            const cursorPos = textarea.selectionStart;
+            
+            // カーソル位置より前の最後の改行を見つける
+            const beforeCursor = text.substring(0, cursorPos);
+            const lastNewline = beforeCursor.lastIndexOf('\n');
+            
+            // カーソル位置より後の最初の改行を見つける
+            const afterCursor = text.substring(cursorPos);
+            const nextNewline = afterCursor.indexOf('\n');
+            
+            // 現在の行のテキストを取得
+            const lineStart = lastNewline + 1;
+            const lineEnd = nextNewline === -1 ? text.length : cursorPos + nextNewline;
+            const currentLine = text.substring(lineStart, lineEnd);
+            
+            return countCharacters(currentLine);
+        }
+        
+        // 文字数表示を更新
+        function updateCharCounter() {
+            const charCount = getCurrentLineCharCount();
+            // 整数の場合は「6文字」、小数の場合は「6.5文字」と表示
+            const displayCount = charCount % 1 === 0 ? charCount.toString() : charCount.toString();
+            charCounter.textContent = `現在行: ${displayCount}文字`;
+        }
+        
+        // 文字数ガイド設定を読み込み
+        function loadCharGuideSettings() {
+            try {
+                const saved = localStorage.getItem('charGuideSettings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(charGuideSettings, parsed);
+                }
+            } catch (error) {
+                console.error('文字数ガイド設定の読み込みに失敗:', error);
+            }
+            
+            // UIに反映
+            document.getElementById('charGuideEnabled').checked = charGuideSettings.enabled;
+            document.getElementById('charGuideLimit').value = charGuideSettings.charLimit;
+            
+            console.log('文字数ガイド設定読み込み完了:', charGuideSettings);
+            
+            // 起動時に背景を適用（遅延実行で確実に適用）
+            setTimeout(() => {
+                updateCharGuideBackground();
+                console.log('起動時背景更新実行');
+            }, 100);
+        }
+        
+        // 文字数ガイド設定を保存
+        function saveCharGuideSettings() {
+            try {
+                localStorage.setItem('charGuideSettings', JSON.stringify(charGuideSettings));
+            } catch (error) {
+                console.error('文字数ガイド設定の保存に失敗:', error);
+            }
+        }
+        
+        // 文字数ガイド背景を更新
+        function updateCharGuideBackground() {
+            const textarea = textInput;
+            
+            if (!textarea) {
+                console.warn('テキストエリアが見つかりません');
+                return;
+            }
+            
+            if (!charGuideSettings.enabled) {
+                textarea.classList.remove('char-guide-background');
+                textarea.style.removeProperty('--guide-percentage');
+                console.log('文字数ガイド無効化');
+                return;
+            }
+            
+            // テキストエリアが非表示の場合はスキップ（参加前など）
+            if (textarea.offsetParent === null) {
+                console.log('テキストエリアが非表示のため処理をスキップ');
+                return;
+            }
+            
+            // DOM要素が完全に描画されるまで待機（最大10回まで）
+            if (textarea.clientWidth === 0) {
+                // 再試行カウンターを追加
+                if (!textarea.dataset.retryCount) {
+                    textarea.dataset.retryCount = '0';
+                }
+                const retryCount = parseInt(textarea.dataset.retryCount);
+                
+                if (retryCount < 10) {
+                    textarea.dataset.retryCount = String(retryCount + 1);
+                    console.log(`テキストエリア未描画のため再試行 (${retryCount + 1}/10)`);
+                    setTimeout(updateCharGuideBackground, 50);
+                    return;
+                } else {
+                    console.warn('テキストエリアの描画待機がタイムアウトしました');
+                    textarea.dataset.retryCount = '0';
+                    return;
+                }
+            }
+            
+            // 描画成功したらカウンターをリセット
+            textarea.dataset.retryCount = '0';
+            
+            // より正確な文字幅計算
+            const style = window.getComputedStyle(textarea);
+            const fontSize = parseFloat(style.fontSize);
+            const fontFamily = style.fontFamily;
+            
+            // Canvas を使用して実際の文字幅を測定
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.font = `${fontSize}px ${fontFamily}`;
+            
+            // 全角文字の幅を測定
+            const fullWidthChar = 'あ';
+            const fullWidthCharWidth = ctx.measureText(fullWidthChar).width;
+            
+            // テキストエリアの実際の幅を取得
+            const textareaStyle = window.getComputedStyle(textarea);
+            const paddingLeft = parseFloat(textareaStyle.paddingLeft) || 0;
+            const paddingRight = parseFloat(textareaStyle.paddingRight) || 0;
+            const textareaWidth = textarea.clientWidth - paddingLeft - paddingRight;
+            
+            // 設定文字数分の実際の幅を計算（全角文字基準）
+            const targetWidth = charGuideSettings.charLimit * fullWidthCharWidth;
+            const limitPercentage = Math.min((targetWidth / textareaWidth) * 100, 100);
+            
+            textarea.classList.add('char-guide-background');
+            textarea.style.setProperty('--guide-percentage', `${limitPercentage}%`);
+            
+            console.log('文字数ガイド更新（改善版）:', {
+                charLimit: charGuideSettings.charLimit,
+                fontSize: fontSize,
+                fullWidthCharWidth: fullWidthCharWidth,
+                textareaWidth: textareaWidth,
+                targetWidth: targetWidth,
+                limitPercentage: `${limitPercentage}%`,
+                enabled: charGuideSettings.enabled
+            });
+        }
+        
+        function updateConnectionInfo(serverInfo) {
+            const connectionInfo = document.querySelector('.connection-info');
+            if (connectionInfo) {
+                connectionInfo.innerHTML = `
+                    <strong>オペレーター画面:</strong> ${serverInfo.operatorUrl}<br>
+                    <strong>表示用画面:</strong> ${serverInfo.displayUrl}
+                `;
+            }
+        }
+        
+        // QRコード生成関数（修正版）
+        function generateDisplayQR(displayUrl) {
+            const qrCodeElement = document.getElementById('qrcode');
+            if (qrCodeElement) {
+                // シンプルなURL生成
+                const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(displayUrl)}`;
+                
+                qrCodeElement.innerHTML = `
+                    <img src="${qrImageUrl}" 
+                         alt="QRコード" 
+                         style="border: 1px solid #ddd; border-radius: 4px;"
+                         onload="console.log('QR画像読み込み成功')"
+                         onerror="console.log('QR画像読み込み失敗'); this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2Y5ZjlmOSIvPjx0ZXh0IHg9Ijc1IiB5PSI3NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzk5OSI+UVLjgrPjg7zjg4njgZfjga7jgozjgb7jgZvjgpM8L3RleHQ+PC9zdmc+';">
+                `;
+                
+                console.log('QRコード生成完了:', displayUrl);
+                console.log('QRコードURL:', qrImageUrl);
+            }
+        }
+        
+        // 送信権情報を更新
+        function updateSenderInfo(sender) {
+            currentSender = sender;
+            console.log('送信権情報更新:', sender);
+        }
+        
+        // 参加者一覧を更新
+        function updateParticipantsList(participants, sender) {
+            // 参加者一覧は削除されたため、この関数は何もしない
+        }
+        
+        // 入力状態を更新
+        function updateInputState(sender) {
+            console.log('入力状態更新:', sender);
+            console.log('自分:', myParticipant);
+            
+            const hasSenderPermission = myParticipant && sender && sender.id === myParticipant.id;
+            console.log('送信権チェック結果:', hasSenderPermission);
+            
+            if (hasSenderPermission) {
+                console.log('送信権あり - UI更新');
+                textInput.disabled = false;
+                currentInputStatus.textContent = '送信可能';
+                currentInputStatus.className = 'tier-status';
+                textInput.className = 'has-permission';
+            } else {
+                console.log('送信権なし - UI更新');
+                textInput.disabled = false; // 送信権がなくても入力は可能
+                currentInputStatus.textContent = '送信権待ち';
+                currentInputStatus.className = 'tier-status waiting';
+                textInput.className = '';
+            }
+        }
+        
+        // 送信処理（キーボードショートカットのみ）
+        function sendText() {
+            const text = textInput.value.trim();
+            
+            // 送信権チェック
+            const hasSenderPermission = myParticipant && currentSender && currentSender.id === myParticipant.id;
+            if (!hasSenderPermission) {
+                console.log('送信権がないため送信できません');
+                return;
+            }
+            
+            if (!text) {
+                // テキストが空の場合は、送信権のみ次に移す（メッセージ送信なし）
+                socket.emit('next_sender');
+            } else {
+                // テキストがある場合は、通常の送信処理
+                socket.emit('send_text', { text: text });
+            }
+            
+            // 送信時に入力クリアを通知
+            socket.emit('clear_typing');
+            
+            textInput.value = ''; // 送信後にクリア
+            updateCharCounter(); // 文字数カウンターをリセット
+            // 背景色は入力時に自動更新されるため、ここでは呼ばない
+        }
+        
+        // Enterキー（Ctrl+Enter）で送信
+        textInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                sendText();
+            }
+        });
+        
+        // IME（日本語入力）対策
+        let isComposing = false;
+        
+        textInput.addEventListener('compositionstart', () => {
+            isComposing = true;
+            console.log('IME変換開始');
+        });
+        
+        textInput.addEventListener('compositionupdate', (e) => {
+            console.log('IME変換中:', e.data);
+        });
+        
+        textInput.addEventListener('compositionend', () => {
+            isComposing = false;
+            console.log('IME変換終了');
+            updateCharCounter();
+            updateCharGuideBackground();
+        });
+        
+        // F12キーで送信（グローバル）
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F12') {
+                e.preventDefault();
+                sendText();
+            }
+        });
+        
+        // 文字数カウンターの更新
+        textInput.addEventListener('input', () => {
+            updateCharCounter();
+            updateCharGuideBackground(); // 入力時に背景を更新
+        });
+        textInput.addEventListener('keyup', updateCharCounter);
+        textInput.addEventListener('click', updateCharCounter);
+        
+        // 入力行数設定のイベントリスナー（個別対応）
+        document.getElementById('previousLinesNumber').addEventListener('change', (e) => {
+            const value = parseInt(e.target.value);
+            if (value >= 2 && value <= 15) {
+                inputLinesSettings.previous = value;
+                saveInputLinesSettings();
+                updateTextAreaHeight();
+            } else {
+                e.target.value = inputLinesSettings.previous;
+            }
+        });
+        
+        document.getElementById('currentLinesNumber').addEventListener('change', (e) => {
+            const value = parseInt(e.target.value);
+            if (value >= 3 && value <= 20) {
+                inputLinesSettings.current = value;
+                saveInputLinesSettings();
+                updateTextAreaHeight();
+            } else {
+                e.target.value = inputLinesSettings.current;
+            }
+        });
+        
+        document.getElementById('nextLinesNumber').addEventListener('change', (e) => {
+            const value = parseInt(e.target.value);
+            if (value >= 2 && value <= 15) {
+                inputLinesSettings.next = value;
+                saveInputLinesSettings();
+                updateTextAreaHeight();
+            } else {
+                e.target.value = inputLinesSettings.next;
+            }
+        });
+        
+        // 文字数ガイド設定のイベントリスナー
+        document.getElementById('charGuideEnabled').addEventListener('change', (e) => {
+            charGuideSettings.enabled = e.target.checked;
+            saveCharGuideSettings();
+            updateCharGuideBackground();
+        });
+        
+        document.getElementById('charGuideLimit').addEventListener('change', (e) => {
+            const value = parseFloat(e.target.value);
+            if (value >= 0.5 && value <= 100) {
+                charGuideSettings.charLimit = value;
+                saveCharGuideSettings();
+                updateCharGuideBackground();
+            }
+        });
+        
+        // ウィンドウリサイズ時に背景を再計算
+        window.addEventListener('resize', () => {
+            setTimeout(updateCharGuideBackground, 100);
+        });
+        
+        // リアルタイム入力を更新
+        function updateTypingUser(data) {
+            if (data.text.trim() === '') {
+                // 空の場合は削除
+                typingUsers.delete(data.userId);
+            } else {
+                // テキストがある場合は更新
+                typingUsers.set(data.userId, {
+                    userName: data.userName,
+                    text: data.text,
+                    timestamp: data.timestamp
+                });
+            }
+        }
+        
+        // 自分の入力をリアルタイム送信（最速設定）
+        textInput.addEventListener('input', () => {
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+            }
+            
+            // 20ms遅延（高速レスポンス）
+            typingTimeout = setTimeout(() => {
+                if (isJoined) {
+                    socket.emit('typing', { text: textInput.value });
+                }
+            }, 20);
+        });
+        
+        // 3段表示を更新
+        function updateThreeTierDisplay(participants, currentSender) {
+            console.log('3段表示更新 - 参加者数:', participants.length);
+            console.log('自分の情報:', myParticipant);
+            console.log('送信権者:', currentSender);
+            
+            if (!myParticipant || participants.length === 0) {
+                previousUserName.textContent = '前の人';
+                previousUserInput.textContent = '待機中...';
+                previousUserInput.className = 'tier-content empty';
+                document.querySelector('.tier-previous').className = 'tier-panel tier-previous';
+                
+                currentUserName.textContent = 'あなた';
+                
+                nextUserName.textContent = '次の人';
+                nextUserInput.textContent = '待機中...';
+                nextUserInput.className = 'tier-content empty';
+                document.querySelector('.tier-next').className = 'tier-panel tier-next';
+                return;
+            }
+            
+            // 現在のユーザーの位置を特定
+            const myIndex = participants.findIndex(p => p.id === myParticipant.id);
+            console.log('自分のインデックス:', myIndex);
+            
+            if (myIndex === -1) return;
+            
+            // 前の人を取得（循環）
+            const previousIndex = (myIndex - 1 + participants.length) % participants.length;
+            const previousUser = participants[previousIndex];
+            
+            // 次の人を取得（循環）
+            const nextIndex = (myIndex + 1) % participants.length;
+            const nextUser = participants[nextIndex];
+            
+            console.log('前の人:', previousUser.name, '次の人:', nextUser.name);
+            
+            // 1人の場合の特別処理
+            if (participants.length === 1) {
+                previousUserName.textContent = 'あなた（前の順番）';
+                previousUserInput.textContent = '1人モードです';
+                previousUserInput.className = 'tier-content empty';
+                document.querySelector('.tier-previous').className = 'tier-panel tier-previous';
+                
+                nextUserName.textContent = 'あなた（次の順番）';
+                nextUserInput.textContent = '1人モードです';
+                nextUserInput.className = 'tier-content empty';
+                document.querySelector('.tier-next').className = 'tier-panel tier-next';
+            } else {
+                // 前の人
+                previousUserName.textContent = previousUser.name;
+                const previousTyping = typingUsers.get(previousUser.id);
+                if (previousTyping && previousTyping.text.trim()) {
+                    previousUserInput.textContent = previousTyping.text;
+                    previousUserInput.className = 'tier-content';
+                } else {
+                    previousUserInput.textContent = '待機中...';
+                    previousUserInput.className = 'tier-content empty';
+                }
+                
+                // 前の人が送信権を持っているかチェック
+                const previousHasSender = currentSender && currentSender.id === previousUser.id;
+                document.querySelector('.tier-previous').className = previousHasSender 
+                    ? 'tier-panel tier-previous has-sender-permission' 
+                    : 'tier-panel tier-previous';
+                
+                // 次の人
+                nextUserName.textContent = nextUser.name;
+                const nextTyping = typingUsers.get(nextUser.id);
+                if (nextTyping && nextTyping.text.trim()) {
+                    nextUserInput.textContent = nextTyping.text;
+                    nextUserInput.className = 'tier-content';
+                } else {
+                    nextUserInput.textContent = '待機中...';
+                    nextUserInput.className = 'tier-content empty';
+                }
+                
+                // 次の人が送信権を持っているかチェック
+                const nextHasSender = currentSender && currentSender.id === nextUser.id;
+                document.querySelector('.tier-next').className = nextHasSender 
+                    ? 'tier-panel tier-next has-sender-permission' 
+                    : 'tier-panel tier-next';
+            }
+            
+            // 自分の名前を更新
+            currentUserName.textContent = myParticipant.name;
+            
+            // 自分が送信権を持っているかチェック（中段用）
+            const iHaveSender = currentSender && currentSender.id === myParticipant.id;
+            tierCurrent.className = iHaveSender 
+                ? 'tier-panel tier-current has-sender-permission' 
+                : 'tier-panel tier-current';
+        }
+        
+        // 3段表示のリアルタイム入力を更新
+        function updateThreeTierTyping(data) {
+            console.log('3段表示更新:', data);
+            
+            if (!myParticipant || allParticipants.length === 0) {
+                console.log('参加者情報がない');
+                return;
+            }
+            
+            const myIndex = allParticipants.findIndex(p => p.id === myParticipant.id);
+            if (myIndex === -1) {
+                console.log('自分が参加者リストにいない');
+                return;
+            }
+            
+            const previousIndex = (myIndex - 1 + allParticipants.length) % allParticipants.length;
+            const nextIndex = (myIndex + 1) % allParticipants.length;
+            
+            const previousUser = allParticipants[previousIndex];
+            const nextUser = allParticipants[nextIndex];
+            
+            console.log('前の人:', previousUser.name, 'ID:', previousUser.id);
+            console.log('次の人:', nextUser.name, 'ID:', nextUser.id);
+            console.log('入力者ID:', data.userId);
+            
+            // 前の人の入力更新
+            if (data.userId === previousUser.id) {
+                console.log('前の人の入力更新:', data.text);
+                if (data.text.trim()) {
+                    previousUserInput.textContent = data.text;
+                    previousUserInput.className = 'tier-content';
+                } else {
+                    previousUserInput.textContent = '待機中...';
+                    previousUserInput.className = 'tier-content empty';
+                }
+            }
+            
+            // 次の人の入力更新
+            if (data.userId === nextUser.id) {
+                console.log('次の人の入力更新:', data.text);
+                if (data.text.trim()) {
+                    nextUserInput.textContent = data.text;
+                    nextUserInput.className = 'tier-content';
+                } else {
+                    nextUserInput.textContent = '待機中...';
+                    nextUserInput.className = 'tier-content empty';
+                }
+            }
+        }
+        
+        // 3段表示の入力クリア
+        function clearThreeTierTyping(userId) {
+            if (!myParticipant || allParticipants.length === 0) return;
+            
+            const myIndex = allParticipants.findIndex(p => p.id === myParticipant.id);
+            if (myIndex === -1) return;
+            
+            const previousIndex = (myIndex - 1 + allParticipants.length) % allParticipants.length;
+            const nextIndex = (myIndex + 1) % allParticipants.length;
+            
+            const previousUser = allParticipants[previousIndex];
+            const nextUser = allParticipants[nextIndex];
+            
+            // 前の人の入力クリア
+            if (userId === previousUser.id) {
+                previousUserInput.textContent = '待機中...';
+                previousUserInput.className = 'tier-content empty';
+            }
+            
+            // 次の人の入力クリア
+            if (userId === nextUser.id) {
+                nextUserInput.textContent = '待機中...';
+                nextUserInput.className = 'tier-content empty';
+            }
+        }
+        
+        // ログ統計情報を更新
+        async function updateLogStats() {
+            try {
+                // ✅ roomIdをクエリパラメータに含める
+                const response = await fetch(`/api/log-stats?room=${currentRoomId}`);
+                
+                if (response.ok) {
+                    const stats = await response.json();
+                    
+                    if (stats.success) {
+                        messageCount = stats.totalMessages;
+                        console.log('サーバーログ統計:', stats);
+                    } else {
+                        console.log('ログ統計取得失敗:', stats.error);
+                    }
+                } else {
+                    console.log('ログ統計取得失敗、ローカルカウントを使用');
+                }
+            } catch (error) {
+                console.log('ログ統計取得エラー、ローカルカウントを使用:', error);
+            }
+            
+            logStats.textContent = `ログ: ${messageCount}件`;
+            
+            // ボタンの有効/無効を切り替え
+            const hasMessages = messageCount > 0;
+            exportTextBtn.disabled = !hasMessages;
+            exportTimecodeBtn.disabled = !hasMessages;
+            clearLogBtn.disabled = !hasMessages;
+            
+            console.log(`ログ件数更新: ${messageCount}件, ボタン有効: ${hasMessages}`);
+        }
+        
+        // CSVファイルをダウンロード
+        async function downloadCSV(type) {
+            console.log(`ダウンロード開始: ${type}, メッセージ数: ${messageCount}`);
+            
+            if (messageCount === 0) {
+                alert('エクスポートするデータがありません');
+                return;
+            }
+            
+            try {
+                // ✅ currentRoomIdを使用
+                if (!currentRoomId) {
+                    alert('ルームIDが取得できません');
+                    return;
+                }
+                
+                // ✅ roomIdをクエリパラメータに含める
+                const url = `/api/export/${type}?room=${currentRoomId}`;
+                console.log(`リクエストURL: ${url}`);
+                
+                const response = await fetch(url);
+                console.log('レスポンス受信:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const blob = await response.blob();
+                console.log('Blob作成:', blob.size, blob.type);
+                
+                // ファイル名を生成
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                const filename = type === 'text-only' 
+                    ? `transcription_text_${timestamp}.csv`
+                    : `transcription_timecode_${timestamp}.csv`;
+                
+                // ダウンロード実行
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                link.style.display = 'none';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                window.URL.revokeObjectURL(downloadUrl);
+                
+                console.log(`ダウンロード完了: ${filename}`);
+                
+            } catch (error) {
+                console.error('ダウンロードエラー:', error);
+                alert(`エクスポートに失敗しました: ${error.message}`);
+            }
+        }
+        
+        // ログクリア
+        async function clearLog() {
+            if (messageCount === 0) {
+                alert('クリアするログがありません');
+                return;
+            }
+            
+            if (!confirm('すべてのログデータを削除しますか?この操作は元に戻せません。')) {
+                return;
+            }
+            
+            try {
+                // ✅ currentRoomIdを使用
+                if (!currentRoomId) {
+                    alert('ルームIDが取得できません');
+                    return;
+                }
+                
+                // ✅ roomIdをボディに含める
+                const response = await fetch('/api/clear-log', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ roomId: currentRoomId })
+                });
+                
+                if (response.ok) {
+                    messageCount = 0;
+                    updateLogStats();
+                    
+                    // ログウィンドウが開いている場合、ログもクリア
+                    if (logWindow && !logWindow.closed) {
+                        logWindow.clearAllLogs();
+                    }
+                    
+                    alert('ログをクリアしました');
+                    console.log('ログクリア完了');
+                } else {
+                    throw new Error('ログクリアに失敗しました');
+                }
+            } catch (error) {
+                console.error('ログクリアエラー:', error);
+                alert('ログクリアに失敗しました');
+            }
+        }
+        
+        // イベントリスナー設定
+        joinBtn.addEventListener('click', () => {
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                alert('参加者名を入力してください');
+                return;
+            }
+            
+            if (name.length > 20) {
+                alert('参加者名は20文字以内で入力してください');
+                return;
+            }
+            
+            joinBtn.disabled = true;
+            joinBtn.textContent = '参加中...';
+            
+            socket.emit('join', { 
+                name: name,
+                roomId: currentRoomId 
+            });
+        });
+        
+        // Enterキーでも参加できるようにする
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                joinBtn.click();
+            }
+        });
+        
+        // ログ表示ボタン
+        logShowBtn.addEventListener('click', () => {
+            console.log('ログ表示ボタンがクリックされました');
+            openLogWindow();
+        });
+        
+        // ログエクスポートボタンのイベントリスナー設定
+        exportTextBtn.addEventListener('click', async () => {
+            console.log('テキストのみエクスポートボタンがクリックされました');
+            await downloadCSV('text-only');
+        });
+
+        exportTimecodeBtn.addEventListener('click', async () => {
+            console.log('タイムコード付きエクスポートボタンがクリックされました');
+            await downloadCSV('with-timecode');
+        });
+
+        clearLogBtn.addEventListener('click', async () => {
+            console.log('ログクリアボタンがクリックされました');
+            await clearLog();
+        });
+
+        // 初期化時にログ統計を更新
+        updateLogStats();
+        
+        // 設定を読み込み（DOM完成後に実行）
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM読み込み完了 - 設定初期化開始');
+            loadInputLinesSettings();
+            loadCharGuideSettings();
+        });
+        
+        // DOMContentLoadedが既に発火している場合の対応
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM読み込み完了 - 設定初期化開始');
+                loadInputLinesSettings();
+                loadCharGuideSettings();
+            });
+        } else {
+            // 既にDOM完成している場合は即座に実行
+            console.log('DOM既に完成 - 設定初期化開始');
+            setTimeout(() => {
+                loadInputLinesSettings();
+                loadCharGuideSettings();
+            }, 50);
+        }
+    </script>
+</body>
+</html>
