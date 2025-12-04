@@ -2398,12 +2398,20 @@
                 hasMessages = true;
                 displayedLineCount = 0; // 0行から始める
                 
-                // スマホ用のDOM高さを初期化
-                const isMobile = isMobileUI();
+                // スマホ用のDOM高さを初期化（一時要素で測定）
                 if (isMobile) {
-                    textLines.innerHTML = textLineArray.join('<br>');
-                    previousHeight = textLines.scrollHeight;
+                    const tempDiv = document.createElement('div');
+                    tempDiv.className = 'text-lines';
+                    tempDiv.style.visibility = 'hidden';
+                    tempDiv.style.position = 'absolute';
+                    tempDiv.style.width = textLines.offsetWidth + 'px';
+                    tempDiv.innerHTML = textLineArray.join('<br>');
+                    document.body.appendChild(tempDiv);
+                    
+                    previousHeight = tempDiv.scrollHeight;
                     console.log(`スマホ用初期高さ: ${previousHeight}px`);
+                    
+                    document.body.removeChild(tempDiv);
                 }
                 
                 // 初回も1行ずつスクロール
@@ -2422,12 +2430,21 @@
             
             if (isMobile) {
                 // ✅ スマホ用: DOM高さベースでスクロール判定
-                // テキストを実際にDOMに反映
-                textLines.innerHTML = textLineArray.join('<br>');
+                // 一時的な隠し要素で高さを測定（実際の表示には影響しない）
+                const tempDiv = document.createElement('div');
+                tempDiv.className = 'text-lines';
+                tempDiv.style.visibility = 'hidden';
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.width = textLines.offsetWidth + 'px'; // 実際の幅と同じにする
+                tempDiv.innerHTML = textLineArray.join('<br>');
+                document.body.appendChild(tempDiv);
                 
-                // DOM要素の高さを測定
-                const currentHeight = textLines.scrollHeight;
-                const lineHeight = parseFloat(getComputedStyle(textLines).lineHeight);
+                // 高さを測定
+                const currentHeight = tempDiv.scrollHeight;
+                const lineHeight = parseFloat(getComputedStyle(tempDiv).lineHeight);
+                
+                // 一時要素を削除
+                document.body.removeChild(tempDiv);
                 
                 // 増えた行数を計算
                 const addedLines = Math.round((currentHeight - previousHeight) / lineHeight);
