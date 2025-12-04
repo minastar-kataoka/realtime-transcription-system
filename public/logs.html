@@ -498,13 +498,6 @@
             connectionText.textContent = '接続エラー';
             console.error('Socket.io接続エラー:', error);
         });
-        });
-        
-        socket.on('connect_error', (error) => {
-            statusIndicator.className = 'status-indicator';
-            connectionText.textContent = '接続エラー';
-            console.error('Socket.io接続エラー:', error);
-        });
         
         // 参加者情報の更新
         socket.on('participants_updated', (data) => {
