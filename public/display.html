@@ -2190,6 +2190,42 @@
             console.log(`表示更新: 全${textLineArray.length}行を表示`);
         }
         
+        // スマホ用: 複数行まとめてスクロール
+        function performMobileScrollAnimation(addedLines, lineHeight) {
+            console.log(`スマホ用スクロール: ${addedLines}行分 (${addedLines * lineHeight}px) をスクロール`);
+            
+            // 全文を表示
+            const html = textLineArray.map(line => 
+                `<div class="text-line">${line || '&nbsp;'}</div>`
+            ).join('');
+            
+            // アニメーション無しで内容を更新
+            textLines.style.transition = 'none';
+            textLines.innerHTML = html;
+            
+            // 初期位置: 追加された行数分下に配置
+            const scrollDistance = addedLines * lineHeight;
+            textLines.style.transform = `translateY(${scrollDistance}px)`;
+            
+            // 次のフレームでアニメーション開始
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const duration = settings.animationDuration;
+                    textLines.style.transition = `transform ${duration}s linear`;
+                    textLines.style.transform = 'translateY(0)';
+                    
+                    console.log(`スマホ用スクロール実行: ${scrollDistance}px上にせり上がる、速度: ${duration}秒`);
+                    
+                    // アニメーション完了後
+                    setTimeout(() => {
+                        textLines.style.transition = 'none';
+                        textLines.style.transform = 'translateY(0)';
+                        console.log('スマホ用スクロール完了');
+                    }, duration * 1000);
+                });
+            });
+        }
+        
         // 連続スクロールアニメーション（スターウォーズ風）
         let scrollQueue = [];
         let isProcessingQueue = false;
@@ -2454,7 +2490,9 @@
                 if (addedLines > 0) {
                     // 次回のために現在の高さを保存
                     previousHeight = currentHeight;
-                    performContinuousScrollAnimation(addedLines);
+                    
+                    // スマホ用: 複数行まとめてスクロール
+                    performMobileScrollAnimation(addedLines, lineHeight);
                 } else {
                     updateDisplay();
                 }
