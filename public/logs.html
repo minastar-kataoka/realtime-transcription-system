@@ -517,7 +517,7 @@
         async function loadExistingLogs() {
             try {
                 console.log('既存ログを読み込み中...');
-                const response = await fetch('/api/messages');
+                const response = await fetch(`/api/logs?roomId=${roomId}`);
                 
                 if (response.ok) {
                     const data = await response.json();
