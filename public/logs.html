@@ -59,6 +59,16 @@
             background-color: #28a745;
         }
         
+        .status-indicator.reconnecting {
+            background-color: #ffc107;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
         .log-stats {
             font-weight: bold;
             color: #495057;
@@ -88,6 +98,15 @@
         
         .btn-primary:hover {
             background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #218838;
         }
         
         .btn-secondary {
@@ -299,6 +318,37 @@
             opacity: 0.7;
         }
         
+        /* スクロールモード切り替えボタン */
+        .scroll-mode-toggle {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            z-index: 1000;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .scroll-mode-toggle:hover {
+            background-color: #5a6268;
+            transform: scale(1.05);
+        }
+        
+        .scroll-mode-toggle.forced {
+            background-color: #dc3545;
+        }
+        
+        .scroll-mode-toggle.forced:hover {
+            background-color: #c82333;
+        }
+        
         /* スクロールバーのスタイル */
         .messages-container::-webkit-scrollbar {
             width: 8px;
@@ -330,6 +380,7 @@
             <div class="log-stats" id="logStats">ログ: 0件</div>
         </div>
         <div class="controls">
+            <button id="copyAllBtn" class="btn btn-success">📋 全ログコピー (Ctrl+Shift+C)</button>
             <button id="exportTextBtn" class="btn btn-primary">📄 ログ出力</button>
             <button id="exportTimecodeBtn" class="btn btn-primary">⏰ ログ出力(tc付き)</button>
             <button id="refreshBtn" class="btn btn-secondary">🔄 更新</button>
@@ -348,6 +399,10 @@
     <button class="auto-scroll-control disabled" id="autoScrollBtn" title="最新メッセージまでスクロール">
         ↓
     </button>
+    
+    <button class="scroll-mode-toggle" id="scrollModeBtn" title="スクロールモード切り替え">
+        📌 停止モード
+    </button>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -361,8 +416,10 @@
         const noMessages = document.getElementById('noMessages');
         const messagesContainer = document.getElementById('messagesContainer');
         const autoScrollBtn = document.getElementById('autoScrollBtn');
+        const scrollModeBtn = document.getElementById('scrollModeBtn');
         
         // ボタン要素
+        const copyAllBtn = document.getElementById('copyAllBtn');
         const exportTextBtn = document.getElementById('exportTextBtn');
         const exportTimecodeBtn = document.getElementById('exportTimecodeBtn');
         const refreshBtn = document.getElementById('refreshBtn');
@@ -371,6 +428,7 @@
         // 状態管理
         let messages = [];
         let autoScroll = true; // デフォルトで自動スクロールON
+        let forcedAutoScroll = false; // 強制自動スクロールモード
         let messageCount = 0;
         let userScrolled = false; // ユーザーが手動でスクロールしたかを追跡
         
@@ -383,15 +441,22 @@
             window.location.href = '/room-manager';
         }
         
-        // Socket.io接続
-        const socket = io();
+        // Socket.io接続設定（再接続を強化）
+        const socket = io({
+            reconnection: true,              // 自動再接続を有効化
+            reconnectionAttempts: 10,        // 再接続試行回数
+            reconnectionDelay: 1000,         // 再接続までの待機時間（ミリ秒）
+            reconnectionDelayMax: 5000,      // 最大待機時間
+            timeout: 20000,                  // 接続タイムアウト
+            transports: ['websocket', 'polling'] // WebSocket優先、フォールバックでpolling
+        });
         
         // 参加者情報を格納
         let participants = [];
         
         socket.on('connect', () => {
             statusIndicator.className = 'status-indicator connected';
-            connectionText.textContent = '接続済み';
+            connectionText.textContent = `接続済み（ルーム: ${roomId}）`;
             console.log('Socket.io接続成功:', socket.id);
             
             // ログ画面としてルームに参加
@@ -404,10 +469,35 @@
             loadExistingLogs();
         });
         
-        socket.on('disconnect', () => {
+        socket.on('disconnect', (reason) => {
             statusIndicator.className = 'status-indicator';
             connectionText.textContent = '切断';
-            console.log('Socket.io接続切断');
+            console.log('Socket.io接続切断:', reason);
+        });
+        
+        socket.on('reconnecting', (attemptNumber) => {
+            statusIndicator.className = 'status-indicator reconnecting';
+            connectionText.textContent = '再接続中...';
+            console.log('再接続中...', attemptNumber);
+        });
+        
+        socket.on('reconnect', (attemptNumber) => {
+            statusIndicator.className = 'status-indicator connected';
+            connectionText.textContent = `接続済み（ルーム: ${roomId}）`;
+            console.log('再接続成功', attemptNumber);
+            
+            // 再接続後、再度ルームに参加してログを再読み込み
+            if (roomId) {
+                socket.emit('join_logs', { roomId: roomId });
+                loadExistingLogs();
+            }
+        });
+        
+        socket.on('connect_error', (error) => {
+            statusIndicator.className = 'status-indicator';
+            connectionText.textContent = '接続エラー';
+            console.error('Socket.io接続エラー:', error);
+        });
         });
         
         socket.on('connect_error', (error) => {
@@ -478,8 +568,10 @@
             updateLogStats();
             renderMessage(message, messages.length);
             
-            // 自動スクロールがONの場合のみ最下部にスクロール
-            if (autoScroll) {
+            // スクロール処理
+            // 強制自動スクロールモード: 常に最下部へ
+            // 停止モード: 最下部にいる時のみスクロール
+            if (forcedAutoScroll || autoScroll) {
                 setTimeout(() => {
                     scrollToBottom();
                 }, 100);
@@ -711,6 +803,37 @@
             }
         }
         
+        // 全ログコピー機能
+        async function copyAllLogs() {
+            if (messages.length === 0) {
+                alert('コピーするログがありません');
+                return;
+            }
+            
+            try {
+                // 全メッセージをテキストに変換
+                const allText = messages.map(msg => msg.text).join('\n');
+                
+                // クリップボードにコピー
+                await navigator.clipboard.writeText(allText);
+                
+                // ボタンのテキストを一時的に変更してフィードバック
+                const originalText = copyAllBtn.textContent;
+                copyAllBtn.textContent = '✓ コピーしました！';
+                copyAllBtn.disabled = true;
+                
+                setTimeout(() => {
+                    copyAllBtn.textContent = originalText;
+                    copyAllBtn.disabled = false;
+                }, 2000);
+                
+                console.log(`全ログコピー完了: ${messages.length}件`);
+            } catch (error) {
+                console.error('コピーエラー:', error);
+                alert('クリップボードへのコピーに失敗しました');
+            }
+        }
+        
         // ログクリア
         async function clearAllLogs() {
             if (messageCount === 0) {
@@ -767,6 +890,9 @@
         });
         
         // イベントリスナー設定
+        // 全ログコピー機能
+        copyAllBtn.addEventListener('click', copyAllLogs);
+        
         exportTextBtn.addEventListener('click', () => exportCSV('text-only'));
         exportTimecodeBtn.addEventListener('click', () => exportCSV('with-timecode'));
         
@@ -783,9 +909,42 @@
             console.log('自動スクロールボタンをクリック - 自動スクロール再開');
         });
         
+        // スクロールモード切り替えボタン
+        scrollModeBtn.addEventListener('click', () => {
+            forcedAutoScroll = !forcedAutoScroll;
+            
+            if (forcedAutoScroll) {
+                scrollModeBtn.textContent = '🔴 強制自動スクロール';
+                scrollModeBtn.classList.add('forced');
+                scrollToBottom();
+                console.log('強制自動スクロールモードON');
+            } else {
+                scrollModeBtn.textContent = '📌 停止モード';
+                scrollModeBtn.classList.remove('forced');
+                console.log('停止モードON');
+            }
+        });
+        
         // ウィンドウが閉じられる前の処理
         window.addEventListener('beforeunload', () => {
             socket.disconnect();
+        });
+        
+        // Page Visibility API: タブがアクティブになったら接続確認+自動再接続
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && !socket.connected) {
+                console.log('タブがアクティブになりました。再接続を試みます...');
+                socket.connect();
+            }
+        });
+        
+        // キーボードショートカット
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+Shift+C: 全ログコピー
+            if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                e.preventDefault();
+                copyAllLogs();
+            }
         });
         
         // 親ウィンドウから呼び出される関数をグローバルに設定
