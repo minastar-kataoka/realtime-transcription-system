@@ -934,13 +934,19 @@
                 
                 <div class="setting-group">
                     <label class="setting-label">1行文字数制限</label>
+                    <div class="setting-row">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="enableCharsPerLineCheck" checked>
+                            <label for="enableCharsPerLineCheck">1行文字数を制限する</label>
+                        </div>
+                    </div>
                     <div class="setting-row" id="charsPerLineControls">
                         <input type="range" class="setting-slider" id="charsPerLineSlider" min="10" max="80" value="30">
                         <input type="number" class="setting-input" id="charsPerLineInput" min="1" max="99" value="30">
                         <span class="setting-unit">文字</span>
                     </div>
                     <div style="margin-top: 8px; font-size: 12px; color: #888;">
-                        ※ PC用は固定文字数、スマホ用は画面幅に応じて自動折り返し
+                        ※ OFFの場合、画面幅に応じて自動折り返し（レスポンシブ）
                     </div>
                 </div>
                 
@@ -1140,7 +1146,8 @@
             backgroundColor: '#000000',
             maskColor: '#000000',  // マスク色
             useBgColorForMask: true,  // 背景色をマスク色として使用
-            maxCharsPerLine: 30,  // PC用は常に有効、スマホ用は自動レスポンシブ
+            enableCharsPerLine: true,  // 1行文字数制限を有効にするか
+            maxCharsPerLine: 30,
             visibleHeightPixels: 300,  // 表示エリアの高さ（ピクセル）
             animationDuration: 0.8,
             fullWidthMode: false,
@@ -1230,12 +1237,18 @@
             document.getElementById('visibleHeightSlider').value = settings.visibleHeightPixels;
             document.getElementById('visibleHeightInput').value = settings.visibleHeightPixels;
             
-            // 1行文字数制限（PC用は常にON、スマホ用は常にレスポンシブ）
+            // 1行文字数制限
+            const enableCharsPerLineCheck = document.getElementById('enableCharsPerLineCheck');
+            const charsPerLineControls = document.getElementById('charsPerLineControls');
             const charsPerLineSlider = document.getElementById('charsPerLineSlider');
             const charsPerLineInput = document.getElementById('charsPerLineInput');
             
+            enableCharsPerLineCheck.checked = settings.enableCharsPerLine !== false; // デフォルトtrue
             charsPerLineSlider.value = settings.maxCharsPerLine;
             charsPerLineInput.value = settings.maxCharsPerLine;
+            charsPerLineSlider.disabled = !enableCharsPerLineCheck.checked;
+            charsPerLineInput.disabled = !enableCharsPerLineCheck.checked;
+            charsPerLineControls.style.opacity = enableCharsPerLineCheck.checked ? '1' : '0.5';
             
             // 全角変換設定
             document.getElementById('fullWidthCheck').checked = settings.fullWidthMode;
@@ -1445,8 +1458,29 @@
                 saveSettings();
             });
             
-            // 1行文字数制限（PC用は常に有効）
-            // スマホ用は自動的にレスポンシブになるため設定不要
+            // 1行文字数制限のON/OFF
+            const enableCharsPerLineCheck = document.getElementById('enableCharsPerLineCheck');
+            const charsPerLineControls = document.getElementById('charsPerLineControls');
+            
+            enableCharsPerLineCheck.addEventListener('change', (e) => {
+                settings.enableCharsPerLine = e.target.checked;
+                
+                // スライダーの有効/無効を切り替え
+                const slider = document.getElementById('charsPerLineSlider');
+                const input = document.getElementById('charsPerLineInput');
+                slider.disabled = !e.target.checked;
+                input.disabled = !e.target.checked;
+                
+                // スタイル更新
+                if (e.target.checked) {
+                    charsPerLineControls.style.opacity = '1';
+                } else {
+                    charsPerLineControls.style.opacity = '0.5';
+                }
+                
+                updateDisplayStyle();
+                saveSettings();
+            });
             
             // フォント色設定
             function syncColorInputs(pickerId, inputId, settingKey) {
@@ -2005,12 +2039,11 @@
                     continue;
                 }
                 
-                // スマホ用: レスポンシブ（改行処理スキップ）
-                // PC用: 固定文字数で改行処理
-                if (isMobile) {
+                // スマホの場合、または1行文字数制限がOFFの場合は改行処理をスキップ（レスポンシブ）
+                if (isMobile || !settings.enableCharsPerLine) {
                     resultLines.push(line);
                 } else {
-                    // PC用は常に改行処理を実行
+                    // 改行処理を実行
                     const brokenLines = smartLineBreak(line, settings.maxCharsPerLine);
                     resultLines.push(...brokenLines);
                 }
@@ -2398,14 +2431,6 @@
                 hasMessages = true;
                 displayedLineCount = 0; // 0行から始める
                 
-                // スマホ用のDOM高さを初期化
-                const isMobile = isMobileUI();
-                if (isMobile) {
-                    textLines.innerHTML = textLineArray.join('<br>');
-                    previousHeight = textLines.scrollHeight;
-                    console.log(`スマホ用初期高さ: ${previousHeight}px`);
-                }
-                
                 // 初回も1行ずつスクロール
                 const initialLineCount = textLineArray.length;
                 if (initialLineCount > 0) {
@@ -2417,48 +2442,18 @@
                 return;
             }
             
-            // PC用とスマホ用でスクロール判定を分ける
-            const isMobile = isMobileUI();
+            // 実際に増えた行数
+            const actualAddedLines = textLineArray.length - previousLineCount;
             
-            if (isMobile) {
-                // ✅ スマホ用: DOM高さベースでスクロール判定
-                // テキストを実際にDOMに反映
-                textLines.innerHTML = textLineArray.join('<br>');
-                
-                // DOM要素の高さを測定
-                const currentHeight = textLines.scrollHeight;
-                const lineHeight = parseFloat(getComputedStyle(textLines).lineHeight);
-                
-                // 増えた行数を計算
-                const addedLines = Math.round((currentHeight - previousHeight) / lineHeight);
-                
-                console.log(`スマホ用スクロール判定: 高さ変化 ${previousHeight}px → ${currentHeight}px, 増加行数: ${addedLines}行`);
-                
-                if (addedLines > 0) {
-                    // 次回のために現在の高さを保存
-                    previousHeight = currentHeight;
-                    performContinuousScrollAnimation(addedLines);
-                } else {
-                    updateDisplay();
-                }
+            if (actualAddedLines > 0) {
+                // 行が増えたら、その分だけスクロール
+                performContinuousScrollAnimation(actualAddedLines);
             } else {
-                // ✅ PC用: 行数ベースでスクロール判定（従来通り）
-                const actualAddedLines = textLineArray.length - previousLineCount;
-                
-                console.log(`PC用スクロール判定: 行数変化 ${previousLineCount} → ${textLineArray.length}, 増加行数: ${actualAddedLines}行`);
-                
-                if (actualAddedLines > 0) {
-                    performContinuousScrollAnimation(actualAddedLines);
-                } else {
-                    updateDisplay();
-                }
+                updateDisplay();
             }
             
             updateDebugInfo();
         }
-        
-        // スマホ用のDOM高さを保存する変数
-        let previousHeight = 0;
         
         // 初期化
         function initialize() {
