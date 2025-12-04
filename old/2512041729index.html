@@ -339,9 +339,6 @@
             font-size: 16px;
             line-height: 1.4;
             color: #333;
-            white-space: pre-wrap; /* 改行を反映し、長い行は折り返す */
-            word-wrap: break-word; /* 長い単語を折り返す */
-            overflow-wrap: break-word; /* 同上（最新のブラウザ対応） */
         }
         
         .tier-content.empty {
@@ -711,7 +708,7 @@
                     </div>
                     
                     <div class="tier-input-area">
-                        <textarea id="textInput" spellcheck="false"></textarea>
+                        <textarea id="textInput"></textarea>
                     </div>
                 </div>
                 
@@ -859,7 +856,6 @@
         let currentSender = null;
         let typingUsers = new Map(); // ユーザーの入力状況を管理
         let typingTimeout = null;
-        let lastSentText = ''; // 最後に送信したテキストを記録（ハイブリッド方式用）
         let allParticipants = []; // 全参加者を保持
         let messageCount = 0; // ログ件数をトラッキング
         let logWindow = null; // ログウィンドウの参照
@@ -1383,13 +1379,6 @@
         async function sendText() {
             const text = textInput.value.trim();
             
-            // ハイブリッド方式: 送信前に最終状態を確実に送信
-            if (isJoined && textInput.value !== lastSentText) {
-                socket.emit('typing', { text: textInput.value });
-                lastSentText = textInput.value;
-                console.log('送信前: 確実送信実行');
-            }
-            
             // 送信権チェック
             const hasSenderPermission = myParticipant && currentSender && currentSender.id === myParticipant.id;
             if (!hasSenderPermission) {
@@ -1415,7 +1404,6 @@
             socket.emit('clear_typing');
             
             textInput.value = ''; // 送信後にクリア
-            lastSentText = ''; // 送信後にリセット
             updateCharCounter(); // 文字数カウンターをリセット
             // 背景色は入力時に自動更新されるため、ここでは呼ばない
         }
@@ -1469,26 +1457,6 @@
         });
         textInput.addEventListener('keyup', updateCharCounter);
         textInput.addEventListener('click', updateCharCounter);
-        
-        // ハイブリッド方式: フォーカスが外れた時に確実に送信
-        textInput.addEventListener('blur', () => {
-            if (isJoined && textInput.value !== lastSentText) {
-                // 最終状態を確実に送信（volatileなし）
-                socket.emit('typing', { text: textInput.value });
-                lastSentText = textInput.value;
-                console.log('フォーカスアウト: 確実送信実行');
-            }
-        });
-        
-        // Enter キーでも確実に送信（Shift+Enterは改行として除外）
-        textInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey && isJoined && textInput.value !== lastSentText) {
-                // 確実に送信（volatileなし）
-                socket.emit('typing', { text: textInput.value });
-                lastSentText = textInput.value;
-                console.log('Enter押下: 確実送信実行');
-            }
-        });
         
         // 入力行数設定のイベントリスナー（個別対応）
         document.getElementById('previousLinesNumber').addEventListener('change', (e) => {
@@ -1560,19 +1528,18 @@
             }
         }
         
-        // 自分の入力をリアルタイム送信（最速設定 + ハイブリッド方式）
+        // 自分の入力をリアルタイム送信（最速設定）
         textInput.addEventListener('input', () => {
             if (typingTimeout) {
                 clearTimeout(typingTimeout);
             }
             
-            // 5ms遅延 + volatile送信（高速だがパケットロスの可能性あり）
+            // 20ms遅延（高速レスポンス）
             typingTimeout = setTimeout(() => {
                 if (isJoined) {
-                    socket.volatile.emit('typing', { text: textInput.value });
-                    lastSentText = textInput.value;
+                    socket.emit('typing', { text: textInput.value });
                 }
-            }, 5);
+            }, 20);
         });
         
         // 3段表示を更新
@@ -1630,9 +1597,6 @@
                 if (previousTyping && previousTyping.text.trim()) {
                     previousUserInput.textContent = previousTyping.text;
                     previousUserInput.className = 'tier-content';
-                    
-                    // ✅ 前の人のエリア: 最新行を表示
-                    previousUserInput.scrollTop = previousUserInput.scrollHeight;
                 } else {
                     previousUserInput.textContent = '';
                     previousUserInput.className = 'tier-content empty';
@@ -1650,9 +1614,6 @@
                 if (nextTyping && nextTyping.text.trim()) {
                     nextUserInput.textContent = nextTyping.text;
                     nextUserInput.className = 'tier-content';
-                    
-                    // ✅ 次の人のエリア: 最初行を表示
-                    nextUserInput.scrollTop = 0;
                 } else {
                     nextUserInput.textContent = '';
                     nextUserInput.className = 'tier-content empty';
@@ -1706,9 +1667,6 @@
                 if (data.text.trim()) {
                     previousUserInput.textContent = data.text;
                     previousUserInput.className = 'tier-content';
-                    
-                    // ✅ 前の人のエリア: 最新行を表示（最下部までスクロール）
-                    previousUserInput.scrollTop = previousUserInput.scrollHeight;
                 } else {
                     previousUserInput.textContent = '';
                     previousUserInput.className = 'tier-content empty';
@@ -1721,9 +1679,6 @@
                 if (data.text.trim()) {
                     nextUserInput.textContent = data.text;
                     nextUserInput.className = 'tier-content';
-                    
-                    // ✅ 次の人のエリア: 最初行を表示（最上部を維持）
-                    nextUserInput.scrollTop = 0;
                 } else {
                     nextUserInput.textContent = '';
                     nextUserInput.className = 'tier-content empty';
