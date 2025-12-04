@@ -113,8 +113,6 @@
             line-height: 1.6;
             color: #fff;
             word-wrap: break-word;
-            word-break: keep-all; /* 英単語を途中で分割しない */
-            overflow-wrap: break-word; /* 長すぎる単語は折り返す */
             white-space: pre-wrap;
             transition: transform 0.8s linear;
             /* アニメーション最適化 */
@@ -2088,19 +2086,18 @@
         // テキストをセグメントに分割
         function tokenizeText(text) {
             const segments = [];
-            // 英単語を先にマッチさせ、残りは1文字ずつ分割
-            // [^ \u3000]+ だと日本語と英語が一緒にマッチしてしまうため、最後を . に変更
-            const regex = /([a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+(?:\.[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+)*|[0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]|[ ]+|[\u3000]+|.)/g;
+            // 半角・全角の英数字を単語として認識
+            const regex = /([0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]|[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+(?:\.[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+)*|[^ \u3000]+|[ ]+|[\u3000]+)/g;
             let match;
             
             while ((match = regex.exec(text)) !== null) {
                 const segment = match[1];
                 
-                if (/^[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+(?:\.[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+)*$/.test(segment)) {
+                if (/^[0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]$/.test(segment)) {
+                    segments.push({ type: 'unit', text: segment });
+                } else if (/^[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+(?:\.[a-zA-Z0-9ａ-ｚＡ-Ｚ０-９]+)*$/.test(segment)) {
                     // 半角・全角の英数字を単語として扱う
                     segments.push({ type: 'word', text: segment });
-                } else if (/^[0-9]+[年月日時分秒台棟個人名枚回度番目階層等件本匹頭羽杯つ丁冊巻話期代世紀]$/.test(segment)) {
-                    segments.push({ type: 'unit', text: segment });
                 } else if (/^ +$/.test(segment)) {
                     // 半角スペースのみ
                     segments.push({ type: 'space', text: segment });
