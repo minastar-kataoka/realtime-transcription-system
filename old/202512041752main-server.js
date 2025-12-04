@@ -269,25 +269,26 @@ function checkReturnAvailability(room) {
   }
 }
 
-// テキスト生成関数（CSV形式からプレーンテキスト形式へ変更）
+// CSV生成関数
 function generateCSV(type, room) {
-  console.log(`テキスト生成開始: ${type}, ログ件数: ${room.sessionLog.length}`);
+  console.log(`CSV生成開始: ${type}, ログ件数: ${room.sessionLog.length}`);
   
   if (room.sessionLog.length === 0) {
     console.log('ログデータなし');
     return 'データがありません\n';
   }
 
-  let textContent = '';
+  let csvContent = '';
   
   if (type === 'text-only') {
-    // ✅ ダブルクォートなしのプレーンテキスト
+    csvContent = 'テキスト\n';
     room.sessionLog.forEach((entry, index) => {
-      textContent += `${entry.text}\n`;
+      const escapedText = `"${entry.text.replace(/"/g, '""')}"`;
+      csvContent += `${escapedText}\n`;
       console.log(`テキスト追加 ${index + 1}: ${entry.text.substring(0, 20)}...`);
     });
   } else if (type === 'with-timecode') {
-    // ✅ タイムコード付きもプレーンテキスト（タブ区切り）
+    csvContent = '送信者,送信時刻,経過時間,テキスト\n';
     room.sessionLog.forEach((entry, index) => {
       const timeString = entry.timestamp.toLocaleTimeString('ja-JP');
       const elapsedSeconds = Math.floor(entry.sessionTime / 1000);
@@ -295,14 +296,16 @@ function generateCSV(type, room) {
       const remainingSeconds = elapsedSeconds % 60;
       const timecode = `${elapsedMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
       
-      // タブ区切りでプレーンテキスト
-      textContent += `${entry.sender}\t${timeString}\t${timecode}\t${entry.text}\n`;
+      const escapedSender = `"${entry.sender.replace(/"/g, '""')}"`;
+      const escapedText = `"${entry.text.replace(/"/g, '""')}"`;
+      
+      csvContent += `${escapedSender},${timeString},${timecode},${escapedText}\n`;
       console.log(`タイムコード追加 ${index + 1}: [${entry.sender}] ${entry.text.substring(0, 20)}...`);
     });
   }
   
-  console.log(`テキスト生成完了: ${textContent.length}文字`);
-  return textContent;
+  console.log(`CSV生成完了: ${csvContent.length}文字`);
+  return csvContent;
 }
 
 // メッセージ一覧を取得するAPI
