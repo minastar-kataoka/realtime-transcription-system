@@ -318,6 +318,37 @@
             opacity: 0.7;
         }
         
+        /* スクロールモード切り替えボタン */
+        .scroll-mode-toggle {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            z-index: 1000;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .scroll-mode-toggle:hover {
+            background-color: #5a6268;
+            transform: scale(1.05);
+        }
+        
+        .scroll-mode-toggle.forced {
+            background-color: #dc3545;
+        }
+        
+        .scroll-mode-toggle.forced:hover {
+            background-color: #c82333;
+        }
+        
         /* スクロールバーのスタイル */
         .messages-container::-webkit-scrollbar {
             width: 8px;
@@ -350,10 +381,10 @@
         </div>
         <div class="controls">
             <button id="copyAllBtn" class="btn btn-success">📋 全ログコピー (Ctrl+Shift+C)</button>
-            <button id="scrollModeBtn" class="btn btn-secondary" title="スクロールモード切り替え">📌 停止モード</button>
             <button id="exportTextBtn" class="btn btn-primary">📄 ログ出力</button>
             <button id="exportTimecodeBtn" class="btn btn-primary">⏰ ログ出力(tc付き)</button>
             <button id="refreshBtn" class="btn btn-secondary">🔄 更新</button>
+            <button id="clearLogBtn" class="btn btn-danger">🗑️ ログクリア</button>
         </div>
     </div>
     
@@ -367,6 +398,10 @@
     
     <button class="auto-scroll-control disabled" id="autoScrollBtn" title="最新メッセージまでスクロール">
         ↓
+    </button>
+    
+    <button class="scroll-mode-toggle" id="scrollModeBtn" title="スクロールモード切り替え">
+        📌 停止モード
     </button>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -388,6 +423,7 @@
         const exportTextBtn = document.getElementById('exportTextBtn');
         const exportTimecodeBtn = document.getElementById('exportTimecodeBtn');
         const refreshBtn = document.getElementById('refreshBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
         
         // 状態管理
         let messages = [];
@@ -703,6 +739,7 @@
             const hasMessages = messageCount > 0;
             exportTextBtn.disabled = !hasMessages;
             exportTimecodeBtn.disabled = !hasMessages;
+            clearLogBtn.disabled = !hasMessages;
         }
         
         // 最下部にスクロール
@@ -790,6 +827,52 @@
             }
         }
         
+        // ログクリア
+        async function clearAllLogs() {
+            if (messageCount === 0) {
+                alert('クリアするログがありません');
+                return;
+            }
+            
+            if (!confirm('すべてのログデータを削除しますか？この操作は元に戻せません。')) {
+                return;
+            }
+            
+            if (!roomId) {
+                alert('ルームIDが取得できません');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/clear-log', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        roomId: roomId
+                    })
+                });
+                
+                if (response.ok) {
+                    // ローカルデータもクリア
+                    messages = [];
+                    messageCount = 0;
+                    messagesList.innerHTML = '';
+                    noMessages.style.display = 'block';
+                    updateLogStats();
+                    
+                    alert('ログをクリアしました');
+                    console.log('ログクリア完了');
+                } else {
+                    throw new Error('ログクリアに失敗しました');
+                }
+            } catch (error) {
+                console.error('ログクリアエラー:', error);
+                alert('ログクリアに失敗しました');
+            }
+        }
+        
         // スクロール監視（自動スクロール制御）
         messagesContainer.addEventListener('scroll', () => {
             const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
@@ -811,6 +894,8 @@
             loadExistingLogs();
         });
         
+        clearLogBtn.addEventListener('click', clearAllLogs);
+        
         autoScrollBtn.addEventListener('click', () => {
             scrollToBottom();
             autoScroll = true; // 自動スクロールを再開
@@ -823,12 +908,12 @@
             
             if (forcedAutoScroll) {
                 scrollModeBtn.textContent = '🔴 強制自動スクロール';
-                scrollModeBtn.className = 'btn btn-danger'; // 赤色に変更
+                scrollModeBtn.classList.add('forced');
                 scrollToBottom();
                 console.log('強制自動スクロールモードON');
             } else {
                 scrollModeBtn.textContent = '📌 停止モード';
-                scrollModeBtn.className = 'btn btn-secondary'; // グレーに戻す
+                scrollModeBtn.classList.remove('forced');
                 console.log('停止モードON');
             }
         });
@@ -857,6 +942,7 @@
         
         // 親ウィンドウから呼び出される関数をグローバルに設定
         window.addMessageToLog = addMessageToLog;
+        window.clearAllLogs = clearAllLogs;
         
         console.log('ログウィンドウ初期化完了');
     </script>
