@@ -371,15 +371,6 @@
             z-index: 1;
             transform: translateZ(0);
             -webkit-transform: translateZ(0);
-            
-            /* Grammarly等の拡張機能を無効化 */
-            /* data-gramm属性でGrammarlyを明示的に拒否 */
-        }
-        
-        /* Grammarly等の拡張機能による要素を非表示 */
-        .tier-input-area grammarly-extension,
-        .tier-input-area grammarly-card {
-            display: none !important;
         }
         
         .tier-input-area textarea:focus {
@@ -720,13 +711,7 @@
                     </div>
                     
                     <div class="tier-input-area">
-                        <textarea 
-                            id="textInput" 
-                            spellcheck="false"
-                            data-gramm="false"
-                            data-gramm_editor="false"
-                            data-enable-grammarly="false"
-                        ></textarea>
+                        <textarea id="textInput" spellcheck="false"></textarea>
                     </div>
                 </div>
                 
