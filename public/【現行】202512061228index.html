@@ -1735,12 +1735,6 @@
         function clearThreeTierTyping(userId) {
             if (!myParticipant || allParticipants.length === 0) return;
             
-            // ✅ 自分自身の入力クリアは無視（他の人の表示を消さない）
-            if (userId === myParticipant.id) {
-                console.log('自分自身の入力クリアは無視');
-                return;
-            }
-            
             const myIndex = allParticipants.findIndex(p => p.id === myParticipant.id);
             if (myIndex === -1) return;
             
