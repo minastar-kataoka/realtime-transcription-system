@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メンテナンス中 - リアルタイム文字起こしシステム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .maintenance-container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+        
+        h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .message {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            white-space: pre-wrap;
+            opacity: 0.95;
+        }
+        
+        .info {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="maintenance-container">
+        <div class="icon">🔧</div>
+        <h1>メンテナンス中</h1>
+        <div class="message" id="message">メッセージを読み込み中...</div>
+        <div class="spinner"></div>
+        <div class="info">ご不便をおかけして申し訳ございません</div>
+    </div>
+
+    <script>
+        // メンテナンスメッセージを取得
+        async function loadMaintenanceMessage() {
+            try {
+                const response = await fetch('/api/maintenance/status');
+                const data = await response.json();
+                
+                if (data.success && data.message) {
+                    document.getElementById('message').textContent = data.message;
+                }
+            } catch (error) {
+                console.error('メッセージ取得エラー:', error);
+                document.getElementById('message').textContent = 'ただいまメンテナンス中です。\nしばらくお待ちください。';
+            }
+        }
+        
+        // 5秒ごとにメンテナンスモードが解除されたかチェック
+        async function checkMaintenanceStatus() {
+            try {
+                const response = await fetch('/api/maintenance/status');
+                const data = await response.json();
+                
+                if (data.success && !data.enabled) {
+                    // メンテナンスモードが解除されたらリロード
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('ステータスチェックエラー:', error);
+            }
+        }
+        
+        // 初回読み込み
+        loadMaintenanceMessage();
+        
+        // 5秒ごとにチェック
+        setInterval(checkMaintenanceStatus, 5000);
+        
+        // 30秒ごとにメッセージ更新
+        setInterval(loadMaintenanceMessage, 30000);
+    </script>
+</body>
+</html>

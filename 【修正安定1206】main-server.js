@@ -54,12 +54,7 @@ app.get('/', (req, res) => {
 
 // 表示専用画面（プロジェクター用）
 app.get('/display', (req, res) => {
-  // メンテナンスモード中はメンテナンス画面を表示
-  if (maintenanceMode.enabled) {
-    res.sendFile(path.join(__dirname, 'public', 'maintenance.html'));
-  } else {
-    res.sendFile(path.join(__dirname, 'public', 'display.html'));
-  }
+  res.sendFile(path.join(__dirname, 'public', 'display.html'));
 });
 
 // ログ表示ページ
@@ -102,12 +97,6 @@ function generateRoomId() {
 let systemMode = 'realtime'; // 'realtime' | 'take'
 let takeQueue = [];
 let isEmergencyMode = false;
-
-// メンテナンスモード管理
-let maintenanceMode = {
-  enabled: false,
-  message: 'ただいまメンテナンス中です。\nしばらくお待ちください。'
-};
 
 // 翻訳機能管理（新規追加）
 let translationConfig = {
@@ -616,37 +605,6 @@ app.get('/api/speech-integration/status', (req, res) => {
     timestamp: new Date()
   });
 });
-
-// メンテナンスモード状態取得API
-app.get('/api/maintenance/status', (req, res) => {
-  res.json({
-    success: true,
-    enabled: maintenanceMode.enabled,
-    message: maintenanceMode.message
-  });
-});
-
-// メンテナンスモード設定API（管理画面用）
-app.post('/api/maintenance/update', basicAuth, (req, res) => {
-  const { enabled, message } = req.body;
-  
-  if (typeof enabled === 'boolean') {
-    maintenanceMode.enabled = enabled;
-  }
-  
-  if (typeof message === 'string') {
-    maintenanceMode.message = message;
-  }
-  
-  console.log(`メンテナンスモード更新: enabled=${maintenanceMode.enabled}, message=${maintenanceMode.message}`);
-  
-  res.json({
-    success: true,
-    enabled: maintenanceMode.enabled,
-    message: maintenanceMode.message
-  });
-});
-
 
 // 音声認識テスト用API
 app.post('/api/speech-integration/test', (req, res) => {
