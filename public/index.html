@@ -1741,6 +1741,10 @@
                 return;
             }
             
+            // ✅ typingUsersマップからも削除
+            typingUsers.delete(userId);
+            console.log(`typingUsersから削除: ${userId}`);
+            
             const myIndex = allParticipants.findIndex(p => p.id === myParticipant.id);
             if (myIndex === -1) return;
             
