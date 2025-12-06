@@ -1580,6 +1580,7 @@
             console.log('3段表示更新 - 参加者数:', participants.length);
             console.log('自分の情報:', myParticipant);
             console.log('送信権者:', currentSender);
+            console.log('🔍 typingUsers の中身:', Array.from(typingUsers.entries()));
             
             if (!myParticipant || participants.length === 0) {
                 previousUserName.textContent = '前の人';
