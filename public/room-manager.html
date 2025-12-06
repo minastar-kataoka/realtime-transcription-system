@@ -252,7 +252,45 @@
         .modal-close:hover {
             background-color: #545b62;
         }
+        
+        /* QRコード関連 */
+        .qr-code-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-top: 2px solid #dee2e6;
+        }
+        
+        .qr-code {
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            flex-shrink: 0;
+        }
+        
+        .qr-info {
+            flex: 1;
+        }
+        
+        .qr-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .qr-description {
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -376,7 +414,6 @@
                     <strong>オペレーター画面:</strong>
                     <div class="url-display">${data.urls.operator}</div>
                     <button class="copy-btn" onclick="copyToClipboard('${data.urls.operator}')">コピー</button>
-                    <button class="copy-btn" onclick="openOperatorWindow('${data.urls.operator}')" style="margin-left: 5px; background-color: #28a745;">開く</button>
                 </div>
                 
                 <div style="margin-top: 15px;">
@@ -405,12 +442,6 @@
             }).catch(err => {
                 console.error('コピー失敗:', err);
             });
-        }
-        
-        function openOperatorWindow(url) {
-            // ポップアップウィンドウとして開く（メニューバー等を非表示）
-            const features = 'menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes,width=1200,height=800';
-            window.open(url, 'OperatorWindow', features);
         }
         
         function copyRoomInfo(roomId, projectName) {
@@ -493,13 +524,37 @@ ${baseUrl}/admin?room=${roomId}
                                 <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/display?room=${room.id}')">URL コピー</button>
                             </div>
                             <div class="url-line">
+                                <span class="url-label">ログ:</span>
+                                <a href="${baseUrl}/logs?room=${room.id}" target="_blank">画面を開く</a>
+                                <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/logs?room=${room.id}')">URL コピー</button>
+                            </div>
+                            <div class="url-line">
                                 <span class="url-label">管理:</span>
                                 <a href="${baseUrl}/admin?room=${room.id}" target="_blank">画面を開く</a>
                                 <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/admin?room=${room.id}')">URL コピー</button>
                             </div>
+                            
+                            <!-- QRコードセクション -->
+                            <div class="qr-code-container">
+                                <div class="qr-code" id="qr-${room.id}"></div>
+                                <div class="qr-info">
+                                    <div class="qr-label">📱 QRコード（表示用画面）</div>
+                                    <div class="qr-description">スマホ・タブレットでスキャンして表示画面を開けます</div>
+                                </div>
+                            </div>
                         </div>
                     `;
                     container.appendChild(div);
+                    
+                    // QRコード生成
+                    new QRCode(document.getElementById(`qr-${room.id}`), {
+                        text: `${baseUrl}/display?room=${room.id}`,
+                        width: 120,
+                        height: 120,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
                 });
             } catch (error) {
                 console.error('ルーム一覧取得エラー:', error);
