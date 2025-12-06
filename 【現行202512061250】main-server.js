@@ -1208,8 +1208,8 @@ io.on('connection', (socket) => {
     const participant = currentRoom.participants.find(p => p.id === socket.id);
     if (!participant) return;
     
-    // ルーム内の全員（自分も含む）に入力クリアを通知
-    io.to(currentRoomId).emit('user_clear_typing', {
+    // ルーム内の他の全員に入力クリアを通知
+    socket.to(currentRoomId).emit('user_clear_typing', {
       userId: socket.id
     });
   });
