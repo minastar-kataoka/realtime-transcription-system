@@ -1680,6 +1680,19 @@
         function updateThreeTierTyping(data) {
             console.log('3段表示更新:', data);
             
+            // ✅ typingUsers マップを更新
+            if (data.text.trim() === '') {
+                typingUsers.delete(data.userId);
+                console.log(`typingUsers から削除: ${data.userId}`);
+            } else {
+                typingUsers.set(data.userId, {
+                    userName: data.userName,
+                    text: data.text,
+                    timestamp: data.timestamp
+                });
+                console.log(`typingUsers に追加/更新: ${data.userId}`);
+            }
+            
             if (!myParticipant || allParticipants.length === 0) {
                 console.log('参加者情報がない');
                 return;
