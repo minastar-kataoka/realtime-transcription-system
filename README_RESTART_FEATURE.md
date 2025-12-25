@@ -25,7 +25,7 @@
 heroku config:set ADMIN_TOKEN=あなたの秘密のトークン -a アプリ名
 ```
 
-### トークンの生成方法（推奨）
+### トークンの生成方法（推奨）UZYFcVjrNX5U
 安全なランダム文字列を生成:
 ```bash
 # PowerShellの場合

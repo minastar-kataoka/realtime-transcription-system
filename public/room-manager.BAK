@@ -268,7 +268,7 @@
         let uptimeInterval = null;
 
         // 管理者トークン（本番環境では環境変数から取得推奨）
-        const ADMIN_TOKEN = 'UZYFcVjrNX5U'; // 202512251155 変更済
+        const ADMIN_TOKEN = 'your-admin-token-here'; // 後で変更してください
 
         // 接続状態の表示
         socket.on('connect', () => {
