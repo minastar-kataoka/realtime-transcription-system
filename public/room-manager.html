@@ -3,174 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ルーム管理</title>
-    <script src="/socket.io/socket.io.js"></script>
+    <title>ルーム管理 - リアルタイム文字起こしシステム</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic Medium", "Meiryo", sans-serif;
             background-color: #f5f5f5;
+            padding: 20px;
         }
         
         .container {
-            background: white;
-            border-radius: 8px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background-color: white;
             padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
         h1 {
             color: #333;
-            border-bottom: 3px solid #4CAF50;
-            padding-bottom: 10px;
+            margin-bottom: 20px;
         }
         
-        h2 {
-            color: #555;
-            margin-top: 30px;
+        .create-section {
+            background-color: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
         }
         
-        .room-create {
+        .create-section h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+        
+        .input-group {
             display: flex;
             gap: 10px;
-            margin: 20px 0;
+            align-items: center;
         }
         
         input[type="text"] {
             flex: 1;
             padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
             font-size: 16px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-        }
-        
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #4CAF50;
         }
         
         button {
             padding: 12px 24px;
-            font-size: 16px;
-            cursor: pointer;
             border: none;
-            border-radius: 4px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
             transition: all 0.3s;
         }
         
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        
-        .btn-create {
-            background-color: #4CAF50;
+        .btn-primary {
+            background-color: #007bff;
             color: white;
         }
         
-        .btn-create:hover {
-            background-color: #45a049;
+        .btn-primary:hover {
+            background-color: #0056b3;
         }
         
-        .btn-delete {
-            background-color: #f44336;
+        .btn-danger {
+            background-color: #dc3545;
             color: white;
             padding: 8px 16px;
             font-size: 14px;
         }
         
-        .btn-delete:hover {
-            background-color: #da190b;
+        .btn-danger:hover {
+            background-color: #c82333;
         }
         
-        .btn-restart {
-            background-color: #ff6b6b;
+        .copy-room-info-btn {
+            background-color: #17a2b8;
             color: white;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 3px;
+            margin-left: 10px;
         }
         
-        .btn-restart:hover {
-            background-color: #ff5252;
+        .copy-room-info-btn:hover {
+            background-color: #138496;
         }
         
         .room-list {
-            margin-top: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .room-list h3 {
+            color: #333;
+            margin-bottom: 20px;
         }
         
         .room-item {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background-color: #fafafa;
+            transition: all 0.3s;
+        }
+        
+        .room-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .room-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px;
-            margin: 10px 0;
-            background-color: #f9f9f9;
-            border-left: 4px solid #4CAF50;
-            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .room-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
         }
         
         .room-info {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .room-urls {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        
+        .room-urls a {
+            color: #007bff;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        
+        .room-urls a:hover {
+            text-decoration: underline;
+        }
+        
+        .url-label {
+            font-weight: bold;
+            color: #495057;
+            display: inline-block;
+            width: 100px;
+        }
+        
+        .url-line {
+            margin-bottom: 8px;
+        }
+        
+        .copy-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 4px 12px;
+            font-size: 12px;
+            margin-left: 10px;
+            border-radius: 3px;
+        }
+        
+        .copy-btn:hover {
+            background-color: #218838;
+        }
+        
+        .no-rooms {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-style: italic;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .url-display {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        
+        .modal-close {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .modal-close:hover {
+            background-color: #545b62;
+        }
+        
+        /* QRコード関連 */
+        .qr-code-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-top: 2px solid #dee2e6;
+        }
+        
+        .qr-code {
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            flex-shrink: 0;
+        }
+        
+        .qr-info {
             flex: 1;
         }
         
-        .room-id {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .room-stats {
+        .qr-label {
             font-size: 14px;
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            margin-right: 8px;
-            border-radius: 3px;
-            font-size: 12px;
             font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
         }
         
-        .badge-operators {
-            background-color: #2196F3;
-            color: white;
+        .qr-description {
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.4;
         }
         
-        .badge-display {
-            background-color: #4CAF50;
-            color: white;
-        }
-        
-        .badge-queue {
-            background-color: #FF9800;
-            color: white;
-        }
-        
-        .admin-section {
+        /* サーバー管理セクション */
+        .maintenance-section {
             background-color: #fff3cd;
             border: 2px solid #ffc107;
-            border-radius: 8px;
             padding: 20px;
-            margin: 20px 0;
+            border-radius: 8px;
+            margin-bottom: 20px;
         }
         
-        .admin-section h3 {
+        .maintenance-section h3 {
             color: #856404;
-            margin-top: 0;
+            margin-bottom: 15px;
         }
         
         .uptime-display {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #333;
-            margin: 15px 0;
+            margin: 10px 0;
         }
         
         .restart-alert {
@@ -185,118 +323,329 @@
             25%, 75% { opacity: 0.5; }
         }
         
-        .restart-status {
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #e3f2fd;
-            border-radius: 4px;
-            font-weight: bold;
-            display: none;
-        }
-        
-        .restart-status.active {
-            display: block;
-        }
-        
-        .connection-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-weight: bold;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-        
-        .status-connected {
-            background-color: #4CAF50;
+        .btn-danger {
+            background-color: #ff6b6b;
             color: white;
+            font-weight: bold;
         }
         
-        .status-disconnected {
-            background-color: #f44336;
-            color: white;
+        .btn-danger:hover {
+            background-color: #ff5252;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-    <div class="connection-status status-disconnected" id="connectionStatus">
-        接続中...
-    </div>
-
     <div class="container">
-        <h1>🎛️ ルーム管理画面</h1>
-        
-        <!-- サーバー管理セクション 2512251208-->
-        <div class="admin-section">
-            <h3>⚙️ サーバー管理</h3>
+        <div class="header">
+            <h1>ルーム管理 - リアルタイム文字起こしシステム</h1>
             
-            <div class="uptime-display">
-                サーバー稼働時間: <span id="uptime">計算中...</span>
-                <span id="restart-alert" class="restart-alert" style="display: none;">
-                    ⚠️ 24時間に近づいています。再起動を推奨します
-                </span>
+            <!-- サーバー管理セクション（新規追加） -->
+            <div class="maintenance-section">
+                <h3>⚙️ サーバー管理</h3>
+                <div class="uptime-display">
+                    サーバー稼働時間: <span id="uptime">取得中...</span>
+                    <span id="restart-alert" class="restart-alert" style="display: none;">
+                        ⚠️ 24時間に近づいています。再起動を推奨します
+                    </span>
+                </div>
+                <p style="font-size: 13px; color: #856404; margin: 10px 0;">
+                    ※ Herokuは24時間ごとに自動再起動します。データ消失を防ぐため、作業の区切りで手動再起動することをお勧めします。
+                </p>
+                <button class="btn-danger" onclick="restartServer()" id="restartBtn">
+                    🔄 サーバーを今すぐ再起動
+                </button>
+                <div id="restart-status" style="margin-top: 10px; display: none;"></div>
             </div>
             
-            <p style="color: #856404; font-size: 14px;">
-                ※ Herokuは24時間ごとに自動再起動します。データ消失を防ぐため、作業の区切りで手動再起動することをお勧めします。
-            </p>
-            
-            <button class="btn-restart" onclick="restartServer()">
-                🔄 サーバーを今すぐ再起動
-            </button>
-            
-            <div id="restart-status" class="restart-status"></div>
+            <div class="create-section">
+                <h3>新規ルーム作成</h3>
+                <div class="input-group">
+                    <input type="text" id="projectName" placeholder="プロジェクト名を入力（例: 2025年1月15日 A社プレゼン）">
+                </div>
+                <div class="input-group" style="margin-top: 10px;">
+                    <input type="text" id="customRoomId" placeholder="ルームID（任意・空欄で自動生成） 例: meeting-room-0115" style="flex: 1;">
+                    <button class="btn-primary" onclick="createRoom()">ルーム作成</button>
+                </div>
+                <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    ※ ルームIDは英数字、ハイフン、アンダースコアのみ使用可能（空欄の場合は自動生成）
+                </div>
+            </div>
         </div>
-
-        <h2>新しいルームを作成</h2>
-        <div class="room-create">
-            <input type="text" id="roomIdInput" placeholder="ルームIDを入力（例: training-room-01）">
-            <button class="btn-create" onclick="createRoom()">ルーム作成</button>
-        </div>
-
-        <h2>既存のルーム</h2>
-        <div class="room-list" id="roomList">
-            <p style="color: #999;">ルームがありません</p>
+        
+        <div class="room-list">
+            <h3>既存ルーム一覧</h3>
+            <div id="roomListContainer">
+                <div class="no-rooms">ルームがありません。新規作成してください。</div>
+            </div>
         </div>
     </div>
-
+    
+    <div class="modal" id="urlModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">ルーム作成完了</h2>
+            </div>
+            <div class="modal-body" id="modalBody">
+            </div>
+            <button class="modal-close" onclick="closeModal()">閉じる</button>
+        </div>
+    </div>
+    
     <script>
-        const socket = io();
-        let currentRoomId = null;
+        async function createRoom() {
+            const projectName = document.getElementById('projectName').value.trim();
+            const customRoomId = document.getElementById('customRoomId').value.trim();
+            
+            if (!projectName) {
+                alert('プロジェクト名を入力してください');
+                return;
+            }
+            
+            // カスタムIDのバリデーション（入力されている場合のみ）
+            if (customRoomId && !/^[a-zA-Z0-9_-]+$/.test(customRoomId)) {
+                alert('ルームIDは英数字、ハイフン、アンダースコアのみ使用できます\n例: meeting-room-0115');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/rooms/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        projectName: projectName,
+                        customRoomId: customRoomId 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showUrlModal(data);
+                    document.getElementById('projectName').value = '';
+                    document.getElementById('customRoomId').value = '';
+                    loadRooms();
+                } else {
+                    alert(data.error || 'ルーム作成に失敗しました');
+                }
+            } catch (error) {
+                console.error('エラー:', error);
+                alert('ルーム作成に失敗しました');
+            }
+        }
+        
+        function showUrlModal(data) {
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <p><strong>プロジェクト名:</strong> ${data.projectName}</p>
+                <p><strong>ルームID:</strong> ${data.roomId}</p>
+                <hr style="margin: 20px 0;">
+                <h3>アクセスURL</h3>
+                <p>以下のURLを関係者に共有してください:</p>
+                
+                <div style="margin-top: 15px;">
+                    <strong>オペレーター画面:</strong>
+                    <div class="url-display">${data.urls.operator}</div>
+                    <button class="copy-btn" onclick="copyToClipboard('${data.urls.operator}')">コピー</button>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <strong>表示用画面:</strong>
+                    <div class="url-display">${data.urls.display}</div>
+                    <button class="copy-btn" onclick="copyToClipboard('${data.urls.display}')">コピー</button>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <strong>管理画面:</strong>
+                    <div class="url-display">${data.urls.admin}</div>
+                    <button class="copy-btn" onclick="copyToClipboard('${data.urls.admin}')">コピー</button>
+                </div>
+            `;
+            
+            document.getElementById('urlModal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('urlModal').style.display = 'none';
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('URLをコピーしました');
+            }).catch(err => {
+                console.error('コピー失敗:', err);
+            });
+        }
+        
+        function copyRoomInfo(roomId, projectName) {
+            const baseUrl = window.location.origin;
+            
+            const roomInfo = `【${projectName}】文字起こしシステム - アクセス情報
+
+ルームID: ${roomId}
+
+━━━━━━━━━━━━━━━━━━
+📝 オペレーター画面（入力用）
+${baseUrl}/?room=${roomId}
+
+📺 表示用画面（プロジェクター投影用）
+${baseUrl}/display?room=${roomId}
+
+🛠️ 管理画面（テイクモード操作用）
+${baseUrl}/admin?room=${roomId}
+━━━━━━━━━━━━━━━━━━
+
+※ 上記URLを関係者に共有してください`;
+
+            navigator.clipboard.writeText(roomInfo).then(() => {
+                alert('ルーム情報をコピーしました！\nメールやチャットに貼り付けて共有できます。');
+            }).catch(err => {
+                console.error('コピー失敗:', err);
+                // フォールバック: テキストエリアで表示
+                const textarea = document.createElement('textarea');
+                textarea.value = roomInfo;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('ルーム情報をコピーしました！');
+            });
+        }
+        
+        async function loadRooms() {
+            try {
+                const response = await fetch('/api/rooms/list');
+                const data = await response.json();
+                
+                const container = document.getElementById('roomListContainer');
+                
+                if (data.rooms.length === 0) {
+                    container.innerHTML = '<div class="no-rooms">ルームがありません。新規作成してください。</div>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                
+                data.rooms.forEach(room => {
+                    const baseUrl = window.location.origin;
+                    const div = document.createElement('div');
+                    div.className = 'room-item';
+                    div.innerHTML = `
+                        <div class="room-header">
+                            <div class="room-title">${room.projectName}</div>
+                            <div>
+                                <button class="copy-room-info-btn" onclick="copyRoomInfo('${room.id}', '${room.projectName}')">📋 ルーム情報をコピー</button>
+                                <button class="btn-danger" onclick="deleteRoom('${room.id}', '${room.projectName}')">削除</button>
+                            </div>
+                        </div>
+                        <div class="room-info">
+                            <strong>ルームID:</strong> ${room.id}<br>
+                            <strong>参加者:</strong> ${room.participantCount}人 | 
+                            <strong>メッセージ:</strong> ${room.messageCount}件 | 
+                            <strong>モード:</strong> ${room.systemMode === 'realtime' ? 'リアルタイム' : 'テイク'}<br>
+                            <strong>作成日時:</strong> ${new Date(room.createdAt).toLocaleString('ja-JP')}
+                        </div>
+                        <div class="room-urls">
+                            <div class="url-line">
+                                <span class="url-label">オペレーター:</span>
+                                <a href="${baseUrl}/?room=${room.id}" target="_blank">画面を開く</a>
+                                <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/?room=${room.id}')">URL コピー</button>
+                            </div>
+                            <div class="url-line">
+                                <span class="url-label">表示用:</span>
+                                <a href="${baseUrl}/display?room=${room.id}" target="_blank">画面を開く</a>
+                                <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/display?room=${room.id}')">URL コピー</button>
+                            </div>
+                            <div class="url-line">
+                                <span class="url-label">ログ:</span>
+                                <a href="${baseUrl}/logs?room=${room.id}" target="_blank">画面を開く</a>
+                                <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/logs?room=${room.id}')">URL コピー</button>
+                            </div>
+                            <div class="url-line">
+                                <span class="url-label">管理:</span>
+                                <a href="${baseUrl}/admin?room=${room.id}" target="_blank">画面を開く</a>
+                                <button class="copy-btn" onclick="copyToClipboard('${baseUrl}/admin?room=${room.id}')">URL コピー</button>
+                            </div>
+                            
+                            <!-- QRコードセクション -->
+                            <div class="qr-code-container">
+                                <div class="qr-code" id="qr-${room.id}"></div>
+                                <div class="qr-info">
+                                    <div class="qr-label">📱 QRコード（表示用画面）</div>
+                                    <div class="qr-description">スマホ・タブレットでスキャンして表示画面を開けます</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                    
+                    // QRコード生成
+                    new QRCode(document.getElementById(`qr-${room.id}`), {
+                        text: `${baseUrl}/display?room=${room.id}`,
+                        width: 120,
+                        height: 120,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                });
+            } catch (error) {
+                console.error('ルーム一覧取得エラー:', error);
+            }
+        }
+        
+        async function deleteRoom(roomId, projectName) {
+            if (!confirm(`「${projectName}」を削除しますか?\n\nこの操作は取り消せません。`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/rooms/${roomId}`, { 
+                    method: 'DELETE' 
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('ルームを削除しました');
+                    loadRooms();
+                } else {
+                    alert('ルーム削除に失敗しました');
+                }
+            } catch (error) {
+                console.error('エラー:', error);
+                alert('ルーム削除に失敗しました');
+            }
+        }
+        
+        // 初回読み込み
+        loadRooms();
+        
+        // 5秒ごとに自動更新
+        setInterval(loadRooms, 5000);
+        
+        // === サーバー管理機能（新規追加） ===
         let serverStartTime = null;
         let uptimeInterval = null;
-
-        // 管理者トークン（本番環境では環境変数から取得推奨）
-        const ADMIN_TOKEN = 'UZYFcVjrNX5U'; // 202512251155 変更済
-
-        // 接続状態の表示
-        socket.on('connect', () => {
-            console.log('サーバーに接続しました');
-            const statusEl = document.getElementById('connectionStatus');
-            statusEl.textContent = '接続済み';
-            statusEl.className = 'connection-status status-connected';
-            
-            // ルーム再作成（再接続時）
-            if (currentRoomId) {
-                console.log('ルームを再作成します:', currentRoomId);
-                socket.emit('create-room', { roomId: currentRoomId });
+        
+        // 管理者トークン
+        const ADMIN_TOKEN = 'UZYFcVjrNX5U'; // Herokuの環境変数ADMIN_TOKENと同じ値
+        
+        // サーバー稼働時間を取得
+        async function fetchServerUptime() {
+            try {
+                const response = await fetch('/api/server/uptime');
+                const data = await response.json();
+                
+                if (data.success) {
+                    serverStartTime = data.startTime;
+                    startUptimeMonitor();
+                }
+            } catch (error) {
+                console.error('稼働時間取得エラー:', error);
             }
-        });
-
-        socket.on('disconnect', () => {
-            console.log('サーバーから切断されました');
-            const statusEl = document.getElementById('connectionStatus');
-            statusEl.textContent = '切断';
-            statusEl.className = 'connection-status status-disconnected';
-        });
-
-        // サーバー起動時刻を受信
-        socket.on('server-info', (data) => {
-            serverStartTime = data.startTime;
-            startUptimeMonitor();
-        });
-
+        }
+        
         // 稼働時間監視を開始
         function startUptimeMonitor() {
             if (uptimeInterval) {
@@ -306,7 +655,7 @@
             updateUptime();
             uptimeInterval = setInterval(updateUptime, 60000); // 1分ごとに更新
         }
-
+        
         // 稼働時間を更新
         function updateUptime() {
             if (!serverStartTime) return;
@@ -324,7 +673,7 @@
                 alertEl.style.display = 'inline';
                 
                 // デスクトップ通知
-                if (Notification.permission === 'granted') {
+                if (Notification && Notification.permission === 'granted') {
                     new Notification('⚠️ サーバー再起動推奨', {
                         body: `稼働時間が${hours}時間を超えました。再起動をお勧めします。`,
                         requireInteraction: true
@@ -334,118 +683,75 @@
                 alertEl.style.display = 'none';
             }
         }
-
+        
         // 通知許可を要求（初回のみ）
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
-
+        
         // サーバー再起動
-        function restartServer() {
+        async function restartServer() {
             if (!confirm(
                 'サーバーを再起動しますか？\n\n' +
                 '接続中のすべてのユーザーが一時的に切断されます。\n' +
-                '30秒ほどで自動的に再接続されます。'
+                '30秒ほどで自動的に再起動されます。'
             )) {
                 return;
             }
             
             const statusEl = document.getElementById('restart-status');
+            const btnEl = document.getElementById('restartBtn');
+            
             statusEl.textContent = '再起動を開始します...';
-            statusEl.className = 'restart-status active';
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#856404';
+            statusEl.style.fontWeight = 'bold';
+            btnEl.disabled = true;
             
-            socket.emit('restart-server', { authToken: ADMIN_TOKEN });
-        }
-
-        // 再起動通知を受信
-        socket.on('server-restarting', (data) => {
-            const statusEl = document.getElementById('restart-status');
-            statusEl.textContent = data.message;
-            statusEl.className = 'restart-status active';
-            
-            // カウントダウン表示
-            if (data.countdown) {
-                let countdown = data.countdown;
-                const countdownInterval = setInterval(() => {
-                    countdown--;
-                    statusEl.textContent = `再起動まで ${countdown} 秒...`;
+            try {
+                const response = await fetch('/api/server/restart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ authToken: ADMIN_TOKEN })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusEl.textContent = 'サーバーを再起動しています... 30秒ほどお待ちください';
                     
-                    if (countdown <= 0) {
-                        clearInterval(countdownInterval);
-                        statusEl.textContent = '再起動中... 自動的に再接続します';
-                    }
-                }, 1000);
-            }
-        });
-
-        // 再起動エラー
-        socket.on('restart-error', (data) => {
-            alert('エラー: ' + data.message);
-            const statusEl = document.getElementById('restart-status');
-            statusEl.className = 'restart-status';
-        });
-
-        // ルーム作成
-        function createRoom() {
-            const roomId = document.getElementById('roomIdInput').value.trim();
-            
-            if (!roomId) {
-                alert('ルームIDを入力してください');
-                return;
-            }
-            
-            socket.emit('create-room', { roomId: roomId });
-            document.getElementById('roomIdInput').value = '';
-        }
-
-        // ルーム作成完了
-        socket.on('room-created', (data) => {
-            currentRoomId = data.roomId;
-            alert(`ルーム "${data.roomId}" を作成しました`);
-        });
-
-        // ルーム削除
-        function deleteRoom(roomId) {
-            if (confirm(`ルーム "${roomId}" を削除しますか？\n接続中のユーザーは切断されます。`)) {
-                socket.emit('delete-room', { roomId: roomId });
+                    // カウントダウン表示
+                    let countdown = 30;
+                    const countdownInterval = setInterval(() => {
+                        countdown--;
+                        statusEl.textContent = `再起動中... あと ${countdown} 秒`;
+                        
+                        if (countdown <= 0) {
+                            clearInterval(countdownInterval);
+                            statusEl.textContent = '再起動完了。ページを再読み込みしてください。';
+                            setTimeout(() => {
+                                location.reload();
+                            }, 2000);
+                        }
+                    }, 1000);
+                } else {
+                    statusEl.textContent = 'エラー: ' + (data.message || '再起動に失敗しました');
+                    statusEl.style.color = '#d32f2f';
+                    btnEl.disabled = false;
+                }
+            } catch (error) {
+                console.error('再起動エラー:', error);
+                statusEl.textContent = 'エラー: 再起動に失敗しました';
+                statusEl.style.color = '#d32f2f';
+                btnEl.disabled = false;
             }
         }
-
-        // ルームリスト更新
-        socket.on('room-list-updated', (data) => {
-            const roomListEl = document.getElementById('roomList');
-            
-            if (data.rooms.length === 0) {
-                roomListEl.innerHTML = '<p style="color: #999;">ルームがありません</p>';
-                return;
-            }
-            
-            roomListEl.innerHTML = data.rooms.map(room => `
-                <div class="room-item">
-                    <div class="room-info">
-                        <div class="room-id">${room.id}</div>
-                        <div class="room-stats">
-                            <span class="status-badge badge-operators">👥 ${room.operatorCount}人</span>
-                            ${room.hasDisplay ? '<span class="status-badge badge-display">📺 接続済み</span>' : ''}
-                            ${room.queueLength > 0 ? `<span class="status-badge badge-queue">📝 ${room.queueLength}件</span>` : ''}
-                        </div>
-                    </div>
-                    <button class="btn-delete" onclick="deleteRoom('${room.id}')">削除</button>
-                </div>
-            `).join('');
-        });
-
-        // エラー処理
-        socket.on('error', (data) => {
-            alert('エラー: ' + data.message);
-        });
-
-        // Enterキーでルーム作成
-        document.getElementById('roomIdInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                createRoom();
-            }
-        });
+        
+        // 稼働時間の初回取得
+        fetchServerUptime();
+        
+        // 1分ごとに稼働時間を再取得
+        setInterval(fetchServerUptime, 60000);
     </script>
 </body>
 </html>
