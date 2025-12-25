@@ -4,7 +4,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const os = require('os');
 
-// DeepL API統合
+// DeepL API統合 ver.2512251207
 const deepl = require('deepl-node');
 
 const app = express();
