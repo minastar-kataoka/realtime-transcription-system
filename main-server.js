@@ -85,6 +85,12 @@ let currentSenderIndex = 0; // 現在の送信権保持者のインデックス
 let sessionLog = [];
 let sessionStartTime = new Date();
 
+// port定義
+const PORT = process.env.PORT || 3000;
+
+// サーバー起動時刻を記録（再起動機能用）
+const serverStartTime = Date.now();
+
 // ルーム管理(BtoBサービス化対応)
 const rooms = new Map(); // roomId -> { participants, logs, settings, createdAt }
 
